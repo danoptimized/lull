@@ -8,6 +8,8 @@ import 'package:lull/core/time/clock_sync.dart';
 import 'package:lull/features/essentials/application/essentials_controller.dart';
 import 'package:lull/features/essentials/presentation/widgets/essential_editor.dart';
 import 'package:lull/features/essentials/presentation/widgets/slot_card.dart';
+import 'package:lull/features/notifications/application/notifications_controller.dart';
+import 'package:lull/features/notifications/presentation/notification_bell.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/pomodoro/application/mirror_controller.dart';
 import 'package:lull/features/pomodoro/data/presence_channel.dart';
@@ -46,6 +48,20 @@ class TodayScreen extends ConsumerWidget {
     ref.listen(economyChangesProvider, (_, _) {
       ref.invalidate(essentialsControllerProvider);
       ref.invalidate(statsControllerProvider);
+    });
+    // Surface incoming notifications as a gentle toast while the app is open.
+    ref.listen(notificationsProvider, (previous, next) {
+      final grew = next.items.length > (previous?.items.length ?? 0);
+      if (grew && next.items.isNotEmpty) {
+        final n = next.items.first;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(n.body.isEmpty ? n.title : '${n.title} · ${n.body}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: context.colors.bg2,
+          ),
+        );
+      }
     });
     // Calibrate the clock so a mirrored countdown agrees with the device that
     // started it, and surface a session running on another device.
@@ -199,7 +215,8 @@ class _Header extends ConsumerWidget {
             ],
           ),
         ),
-        SizedBox(width: spacing.lg),
+        const NotificationBell(),
+        SizedBox(width: spacing.sm),
         ProgressRing(progress: progress, semanticLabel: 'day progress'),
       ],
     );

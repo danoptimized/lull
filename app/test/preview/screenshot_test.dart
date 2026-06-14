@@ -22,6 +22,7 @@ import 'package:lull/features/auth/domain/auth_user.dart';
 import 'package:lull/features/auth/presentation/sign_in_screen.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
+import 'package:lull/features/notifications/data/notification_channel.dart';
 import 'package:lull/features/pomodoro/data/presence_channel.dart';
 import 'package:lull/features/pomodoro/data/session_api.dart';
 import 'package:lull/features/pomodoro/data/session_channel.dart';
@@ -94,6 +95,7 @@ void main() {
     sessionChannelProvider.overrideWithValue(FakeSessionChannel()),
     economyChannelProvider.overrideWithValue(FakeEconomyChannel()),
     presenceChannelProvider.overrideWithValue(FakePresenceChannel()),
+    notificationChannelProvider.overrideWithValue(FakeNotificationChannel()),
     essentialsRepositoryProvider.overrideWithValue(
       FakeEssentialsRepository([
         const Essential(

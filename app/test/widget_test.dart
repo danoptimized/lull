@@ -5,6 +5,7 @@ import 'package:lull/features/auth/data/auth_repository.dart';
 import 'package:lull/features/auth/domain/auth_user.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/presentation/today_screen.dart';
+import 'package:lull/features/notifications/data/notification_channel.dart';
 import 'package:lull/features/pomodoro/data/presence_channel.dart';
 import 'package:lull/features/pomodoro/data/session_api.dart';
 import 'package:lull/features/pomodoro/data/session_channel.dart';
@@ -39,6 +40,9 @@ void main() {
           sessionChannelProvider.overrideWithValue(FakeSessionChannel()),
           economyChannelProvider.overrideWithValue(FakeEconomyChannel()),
           presenceChannelProvider.overrideWithValue(FakePresenceChannel()),
+          notificationChannelProvider.overrideWithValue(
+            FakeNotificationChannel(),
+          ),
         ],
         child: const LullApp(),
       ),
