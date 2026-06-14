@@ -61,6 +61,9 @@ class RecordingSessionApi implements SessionApi {
     calls.add('finalize:$serverId');
     finalizeClientPaused = clientPaused;
   }
+
+  @override
+  Future<DateTime?> serverTime() async => null;
 }
 
 void main() {

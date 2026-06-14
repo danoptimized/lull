@@ -15,3 +15,6 @@ build/
 # Supabase local stack
 supabase/.temp/
 supabase/.branches/
+
+# Node deps for tooling realtime test
+node_modules/

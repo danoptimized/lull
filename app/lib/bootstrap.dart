@@ -3,6 +3,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lull/app.dart';
+import 'package:lull/core/util/device_id.dart';
 import 'package:lull/data/supabase/supabase_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -23,5 +24,12 @@ Future<void> bootstrap() async {
     publishableKey: SupabaseConfig.publishableKey,
   );
 
-  runApp(const ProviderScope(child: LullApp()));
+  final deviceId = await DeviceId.loadOrCreate();
+
+  runApp(
+    ProviderScope(
+      overrides: [deviceIdProvider.overrideWithValue(deviceId)],
+      child: const LullApp(),
+    ),
+  );
 }

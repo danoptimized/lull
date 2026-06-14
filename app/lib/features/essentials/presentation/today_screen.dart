@@ -4,10 +4,13 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:lull/core/theme/theme.dart';
+import 'package:lull/core/time/clock_sync.dart';
 import 'package:lull/features/essentials/application/essentials_controller.dart';
 import 'package:lull/features/essentials/presentation/widgets/essential_editor.dart';
 import 'package:lull/features/essentials/presentation/widgets/slot_card.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
+import 'package:lull/features/pomodoro/application/mirror_controller.dart';
+import 'package:lull/features/pomodoro/presentation/widgets/mirror_card.dart';
 import 'package:lull/features/profile/application/profile_sync.dart';
 import 'package:lull/features/stats/data/stats_repository.dart';
 import 'package:lull/ui/animations/lull_entrance.dart';
@@ -36,6 +39,10 @@ class TodayScreen extends ConsumerWidget {
         ref.invalidate(statsControllerProvider);
       }
     });
+    // Calibrate the clock so a mirrored countdown agrees with the device that
+    // started it, and surface a session running on another device.
+    ref.watch(clockSyncProvider);
+    final mirror = ref.watch(mirroredSessionProvider).asData?.value;
     final essentials = ref.watch(essentialsControllerProvider);
     final spacing = context.spacing;
     // Only a hard failure with nothing cached takes over the screen; otherwise
@@ -46,6 +53,16 @@ class TodayScreen extends ConsumerWidget {
     return LullScaffold(
       child: Column(
         children: [
+          if (mirror != null)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                spacing.screenPadding,
+                spacing.lg,
+                spacing.screenPadding,
+                0,
+              ),
+              child: MirrorCard(session: mirror),
+            ),
           Expanded(child: failed ? const _Failed() : const _EssentialsBody()),
           Padding(
             padding: EdgeInsets.fromLTRB(

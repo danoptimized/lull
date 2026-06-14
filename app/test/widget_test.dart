@@ -5,6 +5,8 @@ import 'package:lull/features/auth/data/auth_repository.dart';
 import 'package:lull/features/auth/domain/auth_user.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/presentation/today_screen.dart';
+import 'package:lull/features/pomodoro/data/session_api.dart';
+import 'package:lull/features/pomodoro/data/session_channel.dart';
 import 'package:lull/features/profile/data/profile_repository.dart';
 import 'package:lull/ui/components/lull_shell.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'support/fake_auth_repository.dart';
 import 'support/fake_essentials_repository.dart';
 import 'support/fake_profile_repository.dart';
+import 'support/fake_session_channel.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -29,6 +32,8 @@ void main() {
             FakeEssentialsRepository(),
           ),
           profileRepositoryProvider.overrideWithValue(FakeProfileRepository()),
+          sessionApiProvider.overrideWithValue(const NoopSessionApi()),
+          sessionChannelProvider.overrideWithValue(FakeSessionChannel()),
         ],
         child: const LullApp(),
       ),

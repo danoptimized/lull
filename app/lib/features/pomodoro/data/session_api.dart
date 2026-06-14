@@ -36,6 +36,10 @@ abstract class SessionApi {
     required String idempotencyKey,
     required bool clientPaused,
   });
+
+  /// Current server time, for measuring device-vs-server clock skew. Null on
+  /// failure (offline).
+  Future<DateTime?> serverTime();
 }
 
 String _serverKind(FocusPhase phase) => switch (phase) {
@@ -112,6 +116,17 @@ class SupabaseSessionApi implements SessionApi {
       });
     } catch (_) {}
   }
+
+  @override
+  Future<DateTime?> serverTime() async {
+    try {
+      final data = await _invoke({'action': 'time'});
+      final iso = data?['serverNow'] as String?;
+      return iso == null ? null : DateTime.parse(iso);
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 /// No-op for offline-only contexts and tests: the engine falls back to a purely
@@ -140,6 +155,9 @@ class NoopSessionApi implements SessionApi {
     required String idempotencyKey,
     required bool clientPaused,
   }) async {}
+
+  @override
+  Future<DateTime?> serverTime() async => null;
 }
 
 final sessionApiProvider = Provider<SessionApi>((ref) => SupabaseSessionApi());

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:lull/core/time/server_clock.dart';
+import 'package:lull/core/util/device_id.dart';
 import 'package:lull/core/util/ids.dart';
 import 'package:lull/features/pomodoro/application/session_cues.dart';
 import 'package:lull/features/pomodoro/data/session_api.dart';
@@ -106,7 +107,7 @@ class FocusEngine extends Notifier<FocusState> {
       kind: session.kind,
       plannedSeconds: session.plannedSeconds,
       essentialId: session.essentialId,
-      clientId: session.id,
+      clientId: ref.read(deviceIdProvider),
     );
     if (result != null && state.session?.id == session.id) {
       final linked = state.session!.copyWith(serverId: result.serverId);

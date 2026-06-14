@@ -76,6 +76,9 @@ Deno.serve(async (req) => {
 
   try {
     switch (action) {
+      case 'time':
+        // Lightweight clock-sync ping for mirror skew correction.
+        return json({ serverNow: nowIso });
       case 'start':
         return await start(db, user.id, body, nowIso);
       case 'pause':
