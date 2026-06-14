@@ -24,11 +24,14 @@ import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
 import 'package:lull/features/pomodoro/presentation/focus_screen.dart';
 import 'package:lull/features/profile/data/profile_repository.dart';
+import 'package:lull/features/stats/data/stats_repository.dart';
+import 'package:lull/features/stats/presentation/stats_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../support/fake_auth_repository.dart';
 import '../support/fake_essentials_repository.dart';
 import '../support/fake_profile_repository.dart';
+import '../support/fake_stats_repository.dart';
 
 /// Logical sizes; everything is captured at DPR 2.
 const _sizes = <String, Size>{
@@ -134,6 +137,18 @@ void main() {
         ),
       ),
     ),
+    'stats': (themeMode) => ProviderScope(
+      overrides: [
+        statsRepositoryProvider.overrideWithValue(FakeStatsRepository()),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: buildLullTheme(Brightness.light),
+        darkTheme: buildLullTheme(Brightness.dark),
+        themeMode: themeMode,
+        home: const StatsScreen(),
+      ),
+    ),
   };
 
   for (final MapEntry(key: screenName, value: buildApp) in screens.entries) {
@@ -151,8 +166,10 @@ void main() {
           try {
             await tester.pumpWidget(buildApp(themeMode));
 
-            // Fixed pumps only — the breathing loop never settles. Two calm
-            // beats let the staggered entrances land fully.
+            // Flush microtasks so async providers (essentials/stats futures)
+            // resolve to data, then two calm beats to land the staggered
+            // entrances. Fixed pumps only — the breathing loop never settles.
+            await tester.pump();
             await tester.pump(const Duration(milliseconds: 700));
             await tester.pump(const Duration(milliseconds: 700));
 

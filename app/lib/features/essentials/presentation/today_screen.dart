@@ -9,6 +9,7 @@ import 'package:lull/features/essentials/presentation/widgets/essential_editor.d
 import 'package:lull/features/essentials/presentation/widgets/slot_card.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/profile/application/profile_sync.dart';
+import 'package:lull/features/stats/data/stats_repository.dart';
 import 'package:lull/ui/animations/lull_entrance.dart';
 import 'package:lull/ui/components/lull_pill_button.dart';
 import 'package:lull/ui/components/lull_scaffold.dart';
@@ -24,6 +25,17 @@ class TodayScreen extends ConsumerWidget {
     // Keep account-synced settings (theme, reduced motion) flowing while the
     // authenticated app is on screen.
     ref.watch(profileSyncProvider);
+    // A completed focus session advances the linked essential and mints points
+    // server-side — refresh both so Today and Stats reflect it on return.
+    ref.listen(focusEngineProvider.select((s) => s.completionPulse), (
+      previous,
+      next,
+    ) {
+      if (previous != null && next > previous) {
+        ref.invalidate(essentialsControllerProvider);
+        ref.invalidate(statsControllerProvider);
+      }
+    });
     final essentials = ref.watch(essentialsControllerProvider);
     final spacing = context.spacing;
     // Only a hard failure with nothing cached takes over the screen; otherwise

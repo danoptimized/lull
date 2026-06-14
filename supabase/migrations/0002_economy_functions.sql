@@ -267,12 +267,12 @@ begin
 
   if v_valid_sessions >= 1
      and public.grant_badge_if_absent(v_session.user_id, 'first_focus') then
-    v_badges := v_badges || 'first_focus';
+    v_badges := array_append(v_badges, 'first_focus');
   end if;
 
   if v_new_len >= 7
      and public.grant_badge_if_absent(v_session.user_id, 'seven_day_streak') then
-    v_badges := v_badges || 'seven_day_streak';
+    v_badges := array_append(v_badges, 'seven_day_streak');
   end if;
 
   select count(*) into v_perfect_days
@@ -283,12 +283,12 @@ begin
 
   if v_perfect_days = 7
      and public.grant_badge_if_absent(v_session.user_id, 'perfect_week') then
-    v_badges := v_badges || 'perfect_week';
+    v_badges := array_append(v_badges, 'perfect_week');
   end if;
 
   if v_valid_sessions >= 100
      and public.grant_badge_if_absent(v_session.user_id, 'hundred_sessions') then
-    v_badges := v_badges || 'hundred_sessions';
+    v_badges := array_append(v_badges, 'hundred_sessions');
   end if;
 
   return jsonb_build_object(

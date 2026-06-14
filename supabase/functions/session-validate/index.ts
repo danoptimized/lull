@@ -263,6 +263,16 @@ async function finalize(
     .select()
     .single();
 
-  // M4 wires award_for_session(sessionId) here when isValid is true.
-  return json({ session: data, serverNow: nowIso, isValid });
+  // Mint the reward in one atomic Postgres transaction: ledger (hash-chained),
+  // streak/multiplier, task + daily bonuses, the linked essential's progress,
+  // and badge grants. Idempotent by session id, so a finalize retry is safe.
+  let award: unknown = null;
+  if (isValid) {
+    const { data: awarded, error } = await db.rpc('award_for_session', {
+      p_session_id: sessionId,
+    });
+    if (!error) award = awarded;
+  }
+
+  return json({ session: data, serverNow: nowIso, isValid, award });
 }
