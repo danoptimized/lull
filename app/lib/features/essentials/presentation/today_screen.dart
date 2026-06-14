@@ -10,8 +10,10 @@ import 'package:lull/features/essentials/presentation/widgets/essential_editor.d
 import 'package:lull/features/essentials/presentation/widgets/slot_card.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/pomodoro/application/mirror_controller.dart';
+import 'package:lull/features/pomodoro/data/presence_channel.dart';
 import 'package:lull/features/pomodoro/presentation/widgets/mirror_card.dart';
 import 'package:lull/features/profile/application/profile_sync.dart';
+import 'package:lull/features/stats/data/economy_channel.dart';
 import 'package:lull/features/stats/data/stats_repository.dart';
 import 'package:lull/ui/animations/lull_entrance.dart';
 import 'package:lull/ui/components/lull_pill_button.dart';
@@ -38,6 +40,12 @@ class TodayScreen extends ConsumerWidget {
         ref.invalidate(essentialsControllerProvider);
         ref.invalidate(statsControllerProvider);
       }
+    });
+    // A change minted on another device (a finished session there) refreshes
+    // this device's essentials + stats too.
+    ref.listen(economyChangesProvider, (_, _) {
+      ref.invalidate(essentialsControllerProvider);
+      ref.invalidate(statsControllerProvider);
     });
     // Calibrate the clock so a mirrored countdown agrees with the device that
     // started it, and surface a session running on another device.
@@ -150,8 +158,10 @@ class _Header extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final spacing = context.spacing;
     final type = context.type;
+    final colors = context.colors;
     final now = DateTime.now();
     final progress = ref.watch(dayProgressProvider);
+    final devices = ref.watch(onlineDevicesProvider).asData?.value ?? 0;
 
     return Row(
       children: [
@@ -165,6 +175,27 @@ class _Header extends ConsumerWidget {
                 DateFormat('EEEE, MMMM d').format(now).toLowerCase(),
                 style: type.caption,
               ),
+              if (devices > 1) ...[
+                SizedBox(height: spacing.sm),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.accentTeal,
+                      ),
+                    ),
+                    SizedBox(width: spacing.xs),
+                    Text(
+                      '$devices devices online',
+                      style: type.caption.copyWith(color: colors.accentTeal),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

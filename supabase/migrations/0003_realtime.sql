@@ -51,24 +51,49 @@ create trigger pomodoro_sessions_broadcast
 -- ONLY on their own session channel. realtime.messages has RLS on by default
 -- with no policies, so private channels are locked until these are added.
 -- ----------------------------------------------------------------------------
-create policy "own session channel: receive"
+-- Topics are `<kind>:<user_id>` (session: for the mirror, presence: for the
+-- live device list). A user may receive and track on any topic that ends in
+-- their own id.
+create policy "own channels: receive"
   on realtime.messages
   for select
   to authenticated
-  using (realtime.topic() = 'session:' || (select auth.uid())::text);
+  using (split_part(realtime.topic(), ':', 2) = (select auth.uid())::text);
 
-create policy "own session channel: presence/broadcast send"
+create policy "own channels: presence/broadcast send"
   on realtime.messages
   for insert
   to authenticated
-  with check (realtime.topic() = 'session:' || (select auth.uid())::text);
+  with check (split_part(realtime.topic(), ':', 2) = (select auth.uid())::text);
 
 -- ----------------------------------------------------------------------------
--- Durable economy changes over postgres_changes: clients subscribe to their own
--- ledger/badge inserts (RLS already restricts SELECT to the owner) and refresh
--- stats. Replica identity full so row data is delivered.
+-- Economy changes also broadcast from the database (same proven path as the
+-- session mirror) to `economy:<user_id>`, so a watching device refreshes its
+-- stats/essentials when another device finishes a session or earns a badge.
 -- ----------------------------------------------------------------------------
-alter table public.points_ledger replica identity full;
-alter table public.user_badges replica identity full;
-alter publication supabase_realtime add table public.points_ledger;
-alter publication supabase_realtime add table public.user_badges;
+create or replace function public.broadcast_economy_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform realtime.send(
+    jsonb_build_object('table', tg_table_name, 'id', new.id::text),
+    'economy',
+    'economy:' || new.user_id::text,
+    true
+  );
+  return null;
+end;
+$$;
+
+create trigger points_ledger_economy_broadcast
+  after insert on public.points_ledger
+  for each row
+  execute function public.broadcast_economy_change();
+
+create trigger user_badges_economy_broadcast
+  after insert on public.user_badges
+  for each row
+  execute function public.broadcast_economy_change();
