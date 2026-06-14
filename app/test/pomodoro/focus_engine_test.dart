@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lull/core/time/server_clock.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/pomodoro/application/session_cues.dart';
+import 'package:lull/features/pomodoro/data/session_api.dart';
 import 'package:lull/features/pomodoro/data/session_repository.dart';
 import 'package:lull/features/pomodoro/domain/focus_phase.dart';
 import 'package:lull/features/pomodoro/domain/focus_session.dart';
@@ -24,6 +25,44 @@ class FakeClock implements ServerClock {
   Duration get skew => Duration.zero;
 }
 
+/// Records the lifecycle calls the engine makes and hands back a server id.
+class RecordingSessionApi implements SessionApi {
+  final List<String> calls = [];
+  bool? finalizeClientPaused;
+
+  @override
+  Future<SessionStartResult?> start({
+    required String idempotencyKey,
+    required FocusPhase kind,
+    required int plannedSeconds,
+    String? essentialId,
+    String? clientId,
+  }) async {
+    calls.add('start');
+    return SessionStartResult(
+      serverId: 'server-123',
+      startedAt: DateTime.utc(2026, 6, 13, 9),
+      serverNow: DateTime.utc(2026, 6, 13, 9),
+    );
+  }
+
+  @override
+  Future<void> pause(String serverId) async => calls.add('pause:$serverId');
+
+  @override
+  Future<void> resume(String serverId) async => calls.add('resume:$serverId');
+
+  @override
+  Future<void> finalize({
+    required String serverId,
+    required String idempotencyKey,
+    required bool clientPaused,
+  }) async {
+    calls.add('finalize:$serverId');
+    finalizeClientPaused = clientPaused;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,7 +70,10 @@ void main() {
   late FakeClock clock;
   late InMemorySessionRepository repo;
 
-  ProviderContainer makeContainer({FocusSession? active}) {
+  ProviderContainer makeContainer({
+    FocusSession? active,
+    SessionApi api = const NoopSessionApi(),
+  }) {
     clock = FakeClock(DateTime.utc(2026, 6, 13, 9));
     repo = InMemorySessionRepository(active);
     return ProviderContainer(
@@ -39,6 +81,7 @@ void main() {
         serverClockProvider.overrideWithValue(clock),
         sessionRepositoryProvider.overrideWithValue(repo),
         sessionCuesProvider.overrideWithValue(const NoopSessionCues()),
+        sessionApiProvider.overrideWithValue(api),
         focusTickerEnabledProvider.overrideWithValue(false),
       ],
     );
@@ -171,6 +214,49 @@ void main() {
       (await repo.recentHistory()).single.endReason,
       SessionEndReason.aborted,
     );
+  });
+
+  group('server lifecycle', () {
+    test('begin links the server id and completion finalizes it', () async {
+      final api = RecordingSessionApi();
+      container = makeContainer(api: api);
+
+      await engine().begin();
+      expect(read().session?.serverId, 'server-123');
+      expect(api.calls, contains('start'));
+
+      clock.advance(const Duration(minutes: 25));
+      await engine().debugTick();
+      expect(api.calls, contains('finalize:server-123'));
+      expect(api.finalizeClientPaused, isFalse);
+    });
+
+    test(
+      'pause and resume are reported, and a pause voids at finalize',
+      () async {
+        final api = RecordingSessionApi();
+        container = makeContainer(api: api);
+
+        await engine().begin();
+        await engine().pause();
+        await engine().resume();
+        expect(api.calls, contains('pause:server-123'));
+        expect(api.calls, contains('resume:server-123'));
+
+        clock.advance(const Duration(minutes: 25));
+        await engine().debugTick();
+        expect(api.finalizeClientPaused, isTrue);
+      },
+    );
+
+    test('give up finalizes the server session too', () async {
+      final api = RecordingSessionApi();
+      container = makeContainer(api: api);
+
+      await engine().begin();
+      await engine().abort();
+      expect(api.calls, contains('finalize:server-123'));
+    });
   });
 
   group('rehydration', () {

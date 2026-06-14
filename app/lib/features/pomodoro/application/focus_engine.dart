@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lull/core/time/server_clock.dart';
 import 'package:lull/core/util/ids.dart';
 import 'package:lull/features/pomodoro/application/session_cues.dart';
+import 'package:lull/features/pomodoro/data/session_api.dart';
 import 'package:lull/features/pomodoro/data/session_repository.dart';
 import 'package:lull/features/pomodoro/domain/focus_phase.dart';
 import 'package:lull/features/pomodoro/domain/focus_session.dart';
@@ -41,6 +42,7 @@ class FocusEngine extends Notifier<FocusState> {
   ServerClock get _clock => ref.read(serverClockProvider);
   SessionRepository get _repo => ref.read(sessionRepositoryProvider);
   SessionCues get _cues => ref.read(sessionCuesProvider);
+  SessionApi get _api => ref.read(sessionApiProvider);
 
   @override
   FocusState build() {
@@ -95,6 +97,22 @@ class FocusEngine extends Notifier<FocusState> {
     await _repo.saveActive(session);
     _startTicker();
     _cues.onBegin(session.kind);
+
+    // Propose to the server; on success the session becomes creditable. The
+    // local countdown already runs from its own anchor, so there's no wait —
+    // we just link the server id back in if this session is still the live one.
+    final result = await _api.start(
+      idempotencyKey: session.idempotencyKey,
+      kind: session.kind,
+      plannedSeconds: session.plannedSeconds,
+      essentialId: session.essentialId,
+      clientId: session.id,
+    );
+    if (result != null && state.session?.id == session.id) {
+      final linked = state.session!.copyWith(serverId: result.serverId);
+      state = state.copyWith(session: linked);
+      await _repo.saveActive(linked);
+    }
   }
 
   Future<void> pause() async {
@@ -117,6 +135,8 @@ class FocusEngine extends Notifier<FocusState> {
     );
     await _repo.saveActive(paused);
     _cues.onPause();
+    final serverId = paused.serverId;
+    if (serverId != null) unawaited(_api.pause(serverId));
   }
 
   Future<void> resume() async {
@@ -134,6 +154,8 @@ class FocusEngine extends Notifier<FocusState> {
     await _repo.saveActive(resumed);
     _startTicker();
     _cues.onResume();
+    final serverId = resumed.serverId;
+    if (serverId != null) unawaited(_api.resume(serverId));
   }
 
   void toggle() {
@@ -166,6 +188,7 @@ class FocusEngine extends Notifier<FocusState> {
         closed.copyWith(endedAt: now, endReason: SessionEndReason.aborted),
       );
       await _repo.clearActive();
+      _serverFinalize(closed);
     }
     _cues.onAbort();
     state = FocusState.ready(
@@ -190,6 +213,21 @@ class FocusEngine extends Notifier<FocusState> {
       essentialTitle: state.essentialTitle,
       lastCompleted: state.lastCompleted,
       completionPulse: state.completionPulse,
+    );
+  }
+
+  /// Tell the server the session is over (best-effort). The server decides
+  /// validity from its own anchor; we also pass whether the user ever paused so
+  /// a pause that happened offline still voids the reward on finalize.
+  void _serverFinalize(FocusSession session) {
+    final serverId = session.serverId;
+    if (serverId == null) return;
+    unawaited(
+      _api.finalize(
+        serverId: serverId,
+        idempotencyKey: session.idempotencyKey,
+        clientPaused: session.rewardVoided,
+      ),
     );
   }
 
@@ -235,6 +273,7 @@ class FocusEngine extends Notifier<FocusState> {
       session.copyWith(endedAt: endedAt, endReason: SessionEndReason.completed),
     );
     await _repo.clearActive();
+    _serverFinalize(session);
 
     final next = PomodoroCycle.next(completedPhase, session.focusesBefore);
     state = FocusState.ready(

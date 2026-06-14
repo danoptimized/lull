@@ -62,6 +62,7 @@ class FocusSession {
     this.essentialId,
     this.essentialTitle,
     this.rewardVoided = false,
+    this.serverId,
   });
 
   factory FocusSession.fromJson(Map<String, dynamic> json) => FocusSession(
@@ -93,6 +94,7 @@ class FocusSession {
     essentialId: json['essentialId'] as String?,
     essentialTitle: json['essentialTitle'] as String?,
     rewardVoided: json['rewardVoided'] as bool? ?? false,
+    serverId: json['serverId'] as String?,
   );
 
   final String id;
@@ -115,6 +117,10 @@ class FocusSession {
   /// forfeits this session's reward — but the session may still run to
   /// completion for the user's own record.
   final bool rewardVoided;
+
+  /// The server's session id once `start` was accepted; null while the session
+  /// is local-only (offline). Needed to address it on the server.
+  final String? serverId;
 
   bool get isPaused => pauses.isNotEmpty && pauses.last.isOpen;
   bool get isActive => endedAt == null;
@@ -153,6 +159,7 @@ class FocusSession {
     bool? rewardVoided,
     String? essentialId,
     String? essentialTitle,
+    String? serverId,
   }) {
     return FocusSession(
       id: id,
@@ -168,6 +175,7 @@ class FocusSession {
       essentialId: essentialId ?? this.essentialId,
       essentialTitle: essentialTitle ?? this.essentialTitle,
       rewardVoided: rewardVoided ?? this.rewardVoided,
+      serverId: serverId ?? this.serverId,
     );
   }
 
@@ -185,5 +193,6 @@ class FocusSession {
     if (essentialId != null) 'essentialId': essentialId,
     if (essentialTitle != null) 'essentialTitle': essentialTitle,
     'rewardVoided': rewardVoided,
+    if (serverId != null) 'serverId': serverId,
   };
 }
