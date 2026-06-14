@@ -1,0 +1,17 @@
+# Analyzer configuration for the Lull app.
+#
+# Extends the standard Flutter lint set with a small curated batch of rules
+# that raise quality without adding codegen or refactor friction.
+# Docs: https://dart.dev/lints
+
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - avoid_redundant_argument_values
+    - require_trailing_commas
+    - directives_ordering
+    - sort_pub_dependencies
+    - unawaited_futures

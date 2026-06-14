@@ -1,0 +1,17 @@
+# OS / editor
+.DS_Store
+*.log
+*.iml
+.idea/
+
+# Secrets (prod keys are injected via --dart-define, never committed)
+.env
+.env.*
+
+# Build output / generated (any depth)
+build/
+.dart_tool/
+
+# Supabase local stack
+supabase/.temp/
+supabase/.branches/

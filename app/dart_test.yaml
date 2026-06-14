@@ -1,0 +1,15 @@
+# Test runner configuration for the lull package.
+
+tags:
+  # Design-review screenshot goldens (test/preview). Skipped in the default
+  # suite (`flutter test`) because font rasterization differs across
+  # platforms, which would make the committed goldens flaky in CI.
+  #
+  # Run / regenerate them explicitly with:
+  #   flutter test --update-goldens --run-skipped -t preview test/preview
+  #
+  # Note: a yaml-level `exclude_tags` cannot be re-enabled from the command
+  # line (package:test unions exclusions), so the opt-out is expressed as a
+  # tag-level skip instead — that one `--run-skipped` can override.
+  preview:
+    skip: "preview goldens — run with: flutter test --run-skipped -t preview test/preview"
