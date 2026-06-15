@@ -1,0 +1,6 @@
+# Cross-origin isolation — required for Flutter's multi-threaded WASM (Skwasm)
+# renderer to use SharedArrayBuffer. Served by Netlify / Cloudflare Pages from
+# this file (copied into build/web). For other hosts, set the same two headers.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp

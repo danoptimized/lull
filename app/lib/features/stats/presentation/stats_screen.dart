@@ -78,20 +78,29 @@ class _PointsHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final type = context.type;
     final colors = context.colors;
-    return Column(
-      children: [
-        Text('$points', style: type.display.copyWith(fontSize: 64)),
-        Text('points earned', style: type.caption),
-        SizedBox(height: context.spacing.xs),
-        Container(
-          height: 3,
-          width: 64,
-          decoration: BoxDecoration(
-            gradient: colors.aurora,
-            borderRadius: context.radii.brPill,
+    // A big point total at large text scale must not burst the screen.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.5,
+      child: Column(
+        children: [
+          Text(
+            '$points',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: type.display.copyWith(fontSize: 64),
           ),
-        ),
-      ],
+          Text('points earned', style: type.caption),
+          SizedBox(height: context.spacing.xs),
+          Container(
+            height: 3,
+            width: 64,
+            decoration: BoxDecoration(
+              gradient: colors.aurora,
+              borderRadius: context.radii.brPill,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -216,8 +225,8 @@ class _Activity extends StatelessWidget {
                   ),
                   Text(_ago(entries[i].createdAt), style: type.caption),
                   SizedBox(width: spacing.lg),
-                  SizedBox(
-                    width: 44,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 44),
                     child: Text(
                       entries[i].points > 0
                           ? '+${entries[i].points}'

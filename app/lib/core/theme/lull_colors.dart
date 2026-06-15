@@ -55,11 +55,14 @@ class LullColors extends ThemeExtension<LullColors> {
     // Same desaturated sage-gray family, but 4.5:1+ on every light surface
     // (it colors 11px labels and quiet icons).
     textFaint: Color(0xFF656E6B),
-    accentTeal: Color(0xFF2E8C7E),
+    // These accents double as small text in light mode (links, ledger amounts,
+    // the PAUSED label, sign-out, errors, the done check), so they're tuned to
+    // clear WCAG 4.5:1 on bg0/bg1/bg2 — deeper than their vivid dark-mode kin.
+    accentTeal: Color(0xFF236B61),
     accentLavender: Color(0xFF6457C8),
-    breakWarm: Color(0xFFC97B45),
-    success: Color(0xFFB98A2E),
-    danger: Color(0xFFB95E5E),
+    breakWarm: Color(0xFF9E5527),
+    success: Color(0xFF9E7320),
+    danger: Color(0xFFA84848),
     // Deeper than accentTeal so near-white CTA text clears 4.5:1 across the
     // whole gradient sweep.
     auroraStart: Color(0xFF257368),

@@ -33,8 +33,8 @@ jobs:
       - name: Test
         run: flutter test
 
-      - name: Build web
-        run: flutter build web --release
+      - name: Build web (WASM / Skwasm)
+        run: flutter build web --wasm
 
   apple-builds:
     name: Apple smoke builds (iOS, macOS)
@@ -65,7 +65,8 @@ jobs:
   supabase:
     name: Supabase (db tests)
     runs-on: ubuntu-latest
-    # Local stack in CI is best-effort until M2.
+    # pgTAP schema/RLS/ledger tests. Best-effort: the local stack in CI can be
+    # environment-sensitive; failures here are surfaced but don't block.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4

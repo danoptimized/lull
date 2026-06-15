@@ -237,8 +237,8 @@ class _TargetStepper extends StatelessWidget {
               icon: const Icon(Icons.remove_rounded),
               color: colors.textSecondary,
             ),
-            SizedBox(
-              width: 28,
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 28),
               child: Text(
                 '$value',
                 textAlign: TextAlign.center,

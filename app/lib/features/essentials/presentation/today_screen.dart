@@ -73,6 +73,8 @@ class TodayScreen extends ConsumerWidget {
     // the body always renders (ghost slots while the first load lands), so the
     // header and structure never flash blank.
     final failed = essentials.hasError && !essentials.hasValue;
+    // First load: dim the ghost slots so they read as "loading", not an empty day.
+    final loading = essentials.isLoading && !essentials.hasValue;
 
     return LullScaffold(
       child: Column(
@@ -87,7 +89,14 @@ class TodayScreen extends ConsumerWidget {
               ),
               child: MirrorCard(session: mirror),
             ),
-          Expanded(child: failed ? const _Failed() : const _EssentialsBody()),
+          Expanded(
+            child: failed
+                ? const _Failed()
+                : Opacity(
+                    opacity: loading ? 0.45 : 1,
+                    child: const _EssentialsBody(),
+                  ),
+          ),
           Padding(
             padding: EdgeInsets.fromLTRB(
               spacing.screenPadding,

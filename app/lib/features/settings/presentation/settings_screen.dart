@@ -272,7 +272,7 @@ class _AccountCard extends ConsumerWidget {
               children: [
                 Text('signed in as', style: type.caption),
                 SizedBox(height: spacing.xs),
-                Text(email ?? '—', style: type.body),
+                Text(email ?? 'your account', style: type.body),
               ],
             ),
           ),

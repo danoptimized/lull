@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:lull/core/audio/audio_controller.dart';
+import 'package:lull/core/motion/motion.dart';
 import 'package:lull/core/theme/theme.dart';
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/pomodoro/domain/focus_phase.dart';
@@ -228,7 +229,7 @@ class _CompletionFlashState extends ConsumerState<_CompletionFlash> {
     return IgnorePointer(
       child: AnimatedOpacity(
         opacity: _message == null ? 0 : 1,
-        duration: context.motion.calm,
+        duration: Motion.functional(context, ref, context.motion.calm),
         curve: context.motion.gentleOut,
         child: Text(
           _message ?? '',
@@ -295,7 +296,7 @@ class _FocusDial extends ConsumerWidget {
           children: [
             AnimatedOpacity(
               opacity: paused ? 0.55 : 1,
-              duration: context.motion.calm,
+              duration: Motion.functional(context, ref, context.motion.calm),
               child: ProgressRing(
                 progress: state.progress,
                 size: _diameter,
