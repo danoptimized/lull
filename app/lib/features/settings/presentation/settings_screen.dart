@@ -6,6 +6,8 @@ import 'package:lull/core/config/app_prefs.dart';
 import 'package:lull/core/feedback/haptics.dart';
 import 'package:lull/core/theme/theme.dart';
 import 'package:lull/features/auth/application/auth_controller.dart';
+import 'package:lull/features/notifications/application/device_registration.dart';
+import 'package:lull/features/notifications/domain/notification_category.dart';
 import 'package:lull/ui/animations/lull_entrance.dart';
 import 'package:lull/ui/components/lull_scaffold.dart';
 
@@ -41,16 +43,23 @@ class SettingsScreen extends ConsumerWidget {
             SizedBox(height: spacing.md),
             const LullEntrance(index: 4, child: _SoundFeelCard()),
             SizedBox(height: spacing.xxl),
-            LullEntrance(index: 5, child: Text('ACCOUNT', style: type.label)),
+            LullEntrance(
+              index: 5,
+              child: Text('NOTIFICATIONS', style: type.label),
+            ),
             SizedBox(height: spacing.md),
-            const LullEntrance(index: 6, child: _AccountCard()),
+            const LullEntrance(index: 6, child: _NotificationsCard()),
+            SizedBox(height: spacing.xxl),
+            LullEntrance(index: 7, child: Text('ACCOUNT', style: type.label)),
+            SizedBox(height: spacing.md),
+            const LullEntrance(index: 8, child: _AccountCard()),
             SizedBox(height: spacing.xxl),
             LullEntrance(
-              index: 7,
+              index: 9,
               child: Text('ABOUT LULL', style: type.label),
             ),
             SizedBox(height: spacing.md),
-            const LullEntrance(index: 8, child: _AboutFooter()),
+            const LullEntrance(index: 10, child: _AboutFooter()),
           ],
         ),
       ),
@@ -236,6 +245,50 @@ class _SoundFeelCard extends ConsumerWidget {
               vertical: spacing.sm,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationsCard extends ConsumerWidget {
+  const _NotificationsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+    final spacing = context.spacing;
+    final type = context.type;
+    final prefsAsync = ref.watch(devicePrefsControllerProvider);
+    final prefs = prefsAsync.value ?? const DeviceNotificationPrefs();
+    final loading = prefsAsync.isLoading;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.bg2,
+        borderRadius: context.radii.brLg,
+      ),
+      child: Column(
+        children: [
+          for (final (index, category)
+              in NotificationCategory.values.indexed) ...[
+            if (index > 0)
+              Divider(height: 1, thickness: 1, color: colors.hairline),
+            SwitchListTile(
+              value: prefs.of(category),
+              onChanged: loading
+                  ? null
+                  : (value) => ref
+                        .read(devicePrefsControllerProvider.notifier)
+                        .toggle(category, value),
+              title: Text(category.title, style: type.body),
+              subtitle: Text(category.blurb, style: type.caption),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: spacing.xl,
+                vertical: spacing.sm,
+              ),
+            ),
+          ],
         ],
       ),
     );

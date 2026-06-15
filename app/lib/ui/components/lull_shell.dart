@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:lull/core/motion/motion.dart';
 import 'package:lull/core/theme/theme.dart';
+import 'package:lull/features/notifications/application/device_registration.dart';
 
 /// Responsive navigation chrome around the tabbed branches: a quiet bottom
 /// bar under 900px, a slim left rail (content capped at 560px) above it.
-class LullShell extends StatelessWidget {
+class LullShell extends ConsumerWidget {
   const LullShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -25,7 +26,11 @@ class LullShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Registering this device for push lives as long as the authed shell does:
+    // it kicks off on sign-in and tears down on sign-out.
+    ref.watch(deviceRegistrationProvider);
+
     final colors = context.colors;
     final wide = MediaQuery.sizeOf(context).width >= _railBreakpoint;
 
