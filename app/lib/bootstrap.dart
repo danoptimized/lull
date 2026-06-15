@@ -1,10 +1,12 @@
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lull/app.dart';
 import 'package:lull/core/util/device_id.dart';
 import 'package:lull/data/supabase/supabase_config.dart';
+import 'package:lull/firebase_options.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Single composition root. Later milestones add persistence warm-up and
@@ -18,6 +20,17 @@ Future<void> bootstrap() async {
     debugPrint('lull · uncaught: $error\n$stackTrace');
     return true;
   };
+
+  // Firebase backs out-of-app push (M6). initializeApp is required before any
+  // Firebase plugin (e.g. messaging) is touched; failure here must not block
+  // the app, which is fully usable without push.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (error, stack) {
+    debugPrint('lull · Firebase init skipped: $error\n$stack');
+  }
 
   await Supabase.initialize(
     url: SupabaseConfig.url,

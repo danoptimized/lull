@@ -1,4 +1,4 @@
-package app.lull
+package works.lull
 
 import io.flutter.embedding.android.FlutterActivity
 

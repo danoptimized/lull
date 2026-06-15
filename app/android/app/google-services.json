@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "856704643129",
+    "project_id": "lull-app-1",
+    "storage_bucket": "lull-app-1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:856704643129:android:2e2662db7729ab44615de8",
+        "android_client_info": {
+          "package_name": "works.lull"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDO13ssdFlfMl3-Q1CGbVhtIU7VROSwNhQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

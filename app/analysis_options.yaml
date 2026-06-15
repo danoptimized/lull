@@ -6,6 +6,12 @@
 
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # Never analyze build output — Swift Package Manager checks out plugin source
+  # (e.g. flutterfire's own tests) under build/, which isn't ours to lint.
+  exclude:
+    - build/**
+
 linter:
   rules:
     - prefer_const_constructors
