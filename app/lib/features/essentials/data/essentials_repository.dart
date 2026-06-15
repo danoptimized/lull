@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:lull/data/local/app_database.dart';
+import 'package:lull/features/essentials/data/local_first_essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 abstract class EssentialsRepository {
   Future<List<Essential>> fetchToday();
   Future<void> create({
+    required String id,
     required int slot,
     required String title,
     required int targetPomodoros,
@@ -42,11 +45,15 @@ class SupabaseEssentialsRepository implements EssentialsRepository {
 
   @override
   Future<void> create({
+    required String id,
     required int slot,
     required String title,
     required int targetPomodoros,
   }) async {
+    // The client mints the id so an offline-created row keeps the same identity
+    // once it syncs (the server accepts a client-supplied uuid under RLS).
     await _client.from('daily_essentials').insert({
+      'id': id,
       'user_id': _userId,
       'local_date': todayLocalDate(),
       'slot': slot,
@@ -85,6 +92,12 @@ class SupabaseEssentialsRepository implements EssentialsRepository {
   }
 }
 
+/// Local-first by default: a Drift cache + outbox in front of Supabase, so
+/// today's essentials read instantly and survive being offline. Tests override
+/// this with an in-memory fake and never touch Drift or Supabase.
 final essentialsRepositoryProvider = Provider<EssentialsRepository>(
-  (ref) => SupabaseEssentialsRepository(),
+  (ref) => LocalFirstEssentialsRepository(
+    SupabaseEssentialsRepository(),
+    ref.watch(appDatabaseProvider),
+  ),
 );

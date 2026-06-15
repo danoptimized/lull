@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:lull/core/util/ids.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
 import 'package:lull/features/profile/data/profile_repository.dart';
@@ -27,7 +28,10 @@ class EssentialsController extends AsyncNotifier<List<Essential>> {
     required String title,
     required int targetPomodoros,
   }) async {
+    // Mint the id here so the row keeps one identity across the cache, the
+    // offline outbox, and the server.
     await _repo.create(
+      id: newUuidV4(),
       slot: slot,
       title: title,
       targetPomodoros: targetPomodoros,

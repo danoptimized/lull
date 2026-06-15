@@ -15,13 +15,14 @@ class FakeEssentialsRepository implements EssentialsRepository {
 
   @override
   Future<void> create({
+    required String id,
     required int slot,
     required String title,
     required int targetPomodoros,
   }) async {
     _items.add(
       Essential(
-        id: 'slot-$slot',
+        id: id,
         slot: slot,
         title: title,
         targetPomodoros: targetPomodoros,
