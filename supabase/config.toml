@@ -385,6 +385,11 @@ deno_version = 2
 [functions.session-validate]
 verify_jwt = true
 
+# push-fanout is called by a database webhook, not an end user. It does its own
+# auth (requires the service-role bearer), so the gateway JWT check is off.
+[functions.push-fanout]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 55327
