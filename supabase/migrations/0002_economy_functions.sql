@@ -68,7 +68,9 @@ end;
 $$;
 
 -- ----------------------------------------------------------------------------
--- award_for_session(p_session_id) — credit a finalized, valid focus session
+-- award_for_session(p_session_id, p_user_id) — credit a finalized, valid focus
+-- session. p_user_id is asserted against the session's owner so a leaked caller
+-- can't credit another user's session.
 -- ----------------------------------------------------------------------------
 -- In one transaction:
 --   1. validate the session (focus, completed, is_valid, not yet credited),
@@ -80,7 +82,7 @@ $$;
 --   5. evaluate and grant simple badges idempotently.
 -- Every ledger insert uses a deterministic md5-derived idempotency key, so
 -- the whole function is safe to retry.
-create or replace function public.award_for_session(p_session_id uuid)
+create or replace function public.award_for_session(p_session_id uuid, p_user_id uuid)
 returns jsonb
 language plpgsql
 security definer
@@ -111,6 +113,13 @@ begin
 
   if not found then
     raise exception 'award_for_session: session % not found', p_session_id;
+  end if;
+
+  -- Ownership: the verified caller must own the session being credited.
+  if v_session.user_id <> p_user_id then
+    raise exception
+      'award_for_session: session % does not belong to user %',
+      p_session_id, p_user_id;
   end if;
 
   if v_session.kind <> 'focus'
@@ -362,10 +371,10 @@ $$;
 -- ----------------------------------------------------------------------------
 revoke execute on function public.user_local_date(uuid)            from public, anon, authenticated;
 revoke execute on function public.grant_badge_if_absent(uuid, text) from public, anon, authenticated;
-revoke execute on function public.award_for_session(uuid)          from public, anon, authenticated;
+revoke execute on function public.award_for_session(uuid, uuid)    from public, anon, authenticated;
 revoke execute on function public.verify_ledger_chain(uuid)        from public, anon, authenticated;
 
 grant execute on function public.user_local_date(uuid)             to service_role;
 grant execute on function public.grant_badge_if_absent(uuid, text) to service_role;
-grant execute on function public.award_for_session(uuid)           to service_role;
+grant execute on function public.award_for_session(uuid, uuid)     to service_role;
 grant execute on function public.verify_ledger_chain(uuid)         to service_role;

@@ -28,6 +28,13 @@ const cors: Record<string, string> = {
 /** Reward integrity tolerance: a completed focus may finish a few seconds shy. */
 const COMPLETION_TOLERANCE_SECONDS = 5;
 
+/**
+ * Floor on a creditable focus session's planned length. The v1 Pomodoro is a
+ * fixed 25 min, so any real focus is far above this; the floor exists so a
+ * tampered-down `plannedSeconds` can't mint points for a trivial session.
+ */
+const MIN_CREDITABLE_FOCUS_SECONDS = 300;
+
 type Pause = { start: string; end: string | null };
 
 function json(body: unknown, status = 200): Response {
@@ -251,8 +258,11 @@ async function finalize(
   // record AND a client-reported pause, so a pause that happened while offline
   // (its pause/resume calls never arrived) still voids on finalize.
   const hadPause = pauses.length > 0 || body.clientPaused === true;
-  // Validity also requires a focus session that actually ran its full length.
-  const isValid = existing.kind === 'focus' && completed && !hadPause;
+  // Validity also requires a focus session that actually ran its full length,
+  // and one whose planned length clears the creditable floor.
+  const isValid = existing.kind === 'focus' &&
+    existing.planned_seconds >= MIN_CREDITABLE_FOCUS_SECONDS &&
+    completed && !hadPause;
 
   const { data } = await db
     .from('pomodoro_sessions')
@@ -271,10 +281,24 @@ async function finalize(
   // and badge grants. Idempotent by session id, so a finalize retry is safe.
   let award: unknown = null;
   if (isValid) {
-    const { data: awarded, error } = await db.rpc('award_for_session', {
-      p_session_id: sessionId,
-    });
-    if (!error) award = awarded;
+    // Rate-limit credited focus sessions to blunt scripted farming: a real
+    // person completes well under 20 valid sessions in a rolling hour.
+    const since = new Date(nowMs - 3_600_000).toISOString();
+    const { count } = await db
+      .from('points_ledger')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('entry_type', 'session_complete')
+      .gte('created_at', since);
+    if ((count ?? 0) >= 20) {
+      award = { rate_limited: true };
+    } else {
+      const { data: awarded, error } = await db.rpc('award_for_session', {
+        p_session_id: sessionId,
+        p_user_id: userId,
+      });
+      if (!error) award = awarded;
+    }
   }
 
   return json({ session: data, serverNow: nowIso, isValid, award });

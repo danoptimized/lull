@@ -16,7 +16,7 @@ create or replace function public.broadcast_session_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   perform realtime.send(
@@ -60,11 +60,16 @@ create policy "own channels: receive"
   to authenticated
   using (split_part(realtime.topic(), ':', 2) = (select auth.uid())::text);
 
-create policy "own channels: presence/broadcast send"
+-- Clients may only INSERT presence on their own topics — never inject
+-- `broadcast` events, which the database is the sole author of.
+create policy "own channels: presence track"
   on realtime.messages
   for insert
   to authenticated
-  with check (split_part(realtime.topic(), ':', 2) = (select auth.uid())::text);
+  with check (
+    split_part(realtime.topic(), ':', 2) = (select auth.uid())::text
+    and realtime.messages.extension = 'presence'
+  );
 
 -- ----------------------------------------------------------------------------
 -- Economy changes also broadcast from the database (same proven path as the
@@ -75,7 +80,7 @@ create or replace function public.broadcast_economy_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   perform realtime.send(

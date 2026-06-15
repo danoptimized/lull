@@ -70,12 +70,21 @@ NEWSID=$(echo "$R" | j "['session']['id']")
 call "{\"action\":\"finalize\",\"sessionId\":\"$NEWSID\",\"idempotencyKey\":\"$K3\"}" >/dev/null
 
 # --- valid completion path: backdate a clean session, then finalize ---
+# planned 300s (the creditable floor) ran in full, no pauses → valid.
 VK=$(uuidgen)
-"${PSQL[@]}" "insert into pomodoro_sessions (user_id, kind, started_at, planned_seconds, pause_intervals, idempotency_key) values ('$UID_','focus', now() - interval '70 seconds', 60, '[]', '$VK');" >/dev/null
+"${PSQL[@]}" "insert into pomodoro_sessions (user_id, kind, started_at, planned_seconds, pause_intervals, idempotency_key) values ('$UID_','focus', now() - interval '310 seconds', 300, '[]', '$VK');" >/dev/null
 VSID=$("${PSQL[@]}" "select id from pomodoro_sessions where idempotency_key='$VK';" | tr -d '[:space:]')
 R=$(call "{\"action\":\"finalize\",\"sessionId\":\"$VSID\",\"idempotencyKey\":\"$VK\"}")
 [ "$(echo "$R" | j "['isValid']")" = "True" ] && pass "clean full focus is valid" || fail "valid path: $R"
 [ "$(echo "$R" | j "['session']['end_reason']")" = "completed" ] && pass "full focus marked completed" || fail "completed: $R"
+
+# --- creditable floor: a fully-run but sub-floor session completes, not credits ---
+FK=$(uuidgen)
+"${PSQL[@]}" "insert into pomodoro_sessions (user_id, kind, started_at, planned_seconds, pause_intervals, idempotency_key) values ('$UID_','focus', now() - interval '70 seconds', 60, '[]', '$FK');" >/dev/null
+FSID=$("${PSQL[@]}" "select id from pomodoro_sessions where idempotency_key='$FK';" | tr -d '[:space:]')
+R=$(call "{\"action\":\"finalize\",\"sessionId\":\"$FSID\",\"idempotencyKey\":\"$FK\"}")
+[ "$(echo "$R" | j "['isValid']")" = "False" ] && pass "sub-floor session is not creditable (H3)" || fail "floor not enforced: $R"
+[ "$(echo "$R" | j "['session']['end_reason']")" = "completed" ] && pass "sub-floor session still marked completed" || fail "sub-floor end_reason: $R"
 
 # --- RLS: a client cannot write pomodoro_sessions directly ---
 DIRECT=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API/rest/v1/pomodoro_sessions" \

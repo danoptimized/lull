@@ -35,7 +35,7 @@ EID=$(curl -s -X POST "$API/rest/v1/daily_essentials?select=id" -H "apikey: $KEY
 
 # --- backdate a clean, completed focus session linked to that essential ---
 VK=$(uuidgen)
-"${PSQL[@]}" "insert into pomodoro_sessions (user_id, essential_id, kind, started_at, planned_seconds, pause_intervals, idempotency_key) values ('$UID_','$EID','focus', now() - interval '70 seconds', 60, '[]', '$VK');" >/dev/null
+"${PSQL[@]}" "insert into pomodoro_sessions (user_id, essential_id, kind, started_at, planned_seconds, pause_intervals, idempotency_key) values ('$UID_','$EID','focus', now() - interval '310 seconds', 300, '[]', '$VK');" >/dev/null
 SID=$(q "select id from pomodoro_sessions where idempotency_key='$VK';")
 
 # --- finalize via the Edge Function → should credit the economy ---

@@ -380,6 +380,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# session-validate derives identity from the caller's JWT and writes with the
+# service role — JWT verification at the gateway is load-bearing, so pin it on.
+[functions.session-validate]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 55327

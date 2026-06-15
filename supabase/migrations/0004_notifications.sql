@@ -16,7 +16,7 @@ create or replace function public.notify_user(
 returns void
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public, extensions, pg_temp
 as $$
 begin
   insert into public.notification_log (user_id, category, dedupe_key, status, sent_at)
@@ -47,7 +47,7 @@ create or replace function public.notify_badge_earned()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 declare
   v_name text;
@@ -70,7 +70,7 @@ create or replace function public.notify_economy()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, pg_temp
 as $$
 begin
   if new.entry_type = 'daily_complete_bonus' then

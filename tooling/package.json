@@ -1,0 +1,9 @@
+{
+  "name": "lull-tooling",
+  "private": true,
+  "type": "module",
+  "description": "Local verification scripts for Lull (realtime mirror/presence/notify). Run against the local Supabase stack.",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0"
+  }
+}
