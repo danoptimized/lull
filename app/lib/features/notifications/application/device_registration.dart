@@ -55,21 +55,33 @@ final deviceRegistrationProvider = Provider<void>((ref) {
   final repo = ref.read(devicesRepositoryProvider);
   final tokens = ref.read(pushTokensProvider);
 
-  unawaited(
-    registerDevice(
-      repo: repo,
-      tokens: tokens,
-      userId: user.id,
-      deviceId: deviceId,
-      platform: currentPlatformTag(),
-    ),
-  );
+  // Ensure the device row exists, but do NOT request push permission here — the
+  // OS prompt is deferred until the user opts in by enabling a notification
+  // category (see DevicePrefsController.toggle). Asking up front, before any
+  // context, is the classic permission anti-pattern.
+  unawaited(_ensureDeviceRow(repo, user.id, deviceId));
 
   final sub = tokens.onTokenRefresh.listen((token) {
     repo.attachToken(userId: user.id, deviceId: deviceId, token: token);
   });
   ref.onDispose(sub.cancel);
 });
+
+Future<void> _ensureDeviceRow(
+  DevicesRepository repo,
+  String userId,
+  String deviceId,
+) async {
+  try {
+    await repo.ensureDevice(
+      userId: userId,
+      deviceId: deviceId,
+      platform: currentPlatformTag(),
+    );
+  } catch (error, stack) {
+    debugPrint('lull · ensureDevice skipped: $error\n$stack');
+  }
+}
 
 /// This device's per-category notification opt-ins, for the settings UI.
 class DevicePrefsController extends AsyncNotifier<DeviceNotificationPrefs> {
@@ -96,6 +108,21 @@ class DevicePrefsController extends AsyncNotifier<DeviceNotificationPrefs> {
           category: category,
           enabled: enabled,
         );
+
+    // Enabling a category is the user's opt-in: now is the contextual moment to
+    // ask the OS for push permission and capture a token. Idempotent — no
+    // re-prompt once granted, and a no-op token if denied (in-app still works).
+    if (enabled) {
+      unawaited(
+        registerDevice(
+          repo: ref.read(devicesRepositoryProvider),
+          tokens: ref.read(pushTokensProvider),
+          userId: user.id,
+          deviceId: ref.read(deviceIdProvider),
+          platform: currentPlatformTag(),
+        ),
+      );
+    }
   }
 }
 
