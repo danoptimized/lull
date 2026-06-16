@@ -8,6 +8,7 @@ import 'package:lull/features/essentials/presentation/today_screen.dart';
 import 'package:lull/features/notifications/data/devices_repository.dart';
 import 'package:lull/features/notifications/data/notification_channel.dart';
 import 'package:lull/features/notifications/data/push_tokens.dart';
+import 'package:lull/features/onboarding/application/onboarding.dart';
 import 'package:lull/features/pomodoro/data/presence_channel.dart';
 import 'package:lull/features/pomodoro/data/session_api.dart';
 import 'package:lull/features/pomodoro/data/session_channel.dart';
@@ -36,6 +37,8 @@ void main() {
           authRepositoryProvider.overrideWithValue(
             FakeAuthRepository(const AuthUser(id: 'test')),
           ),
+          // A returning, already-onboarded user lands straight on Today.
+          onboardingSeedProvider.overrideWithValue(true),
           essentialsRepositoryProvider.overrideWithValue(
             FakeEssentialsRepository(),
           ),

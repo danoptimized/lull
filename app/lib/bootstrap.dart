@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lull/app.dart';
 import 'package:lull/core/util/device_id.dart';
 import 'package:lull/data/supabase/supabase_config.dart';
+import 'package:lull/features/onboarding/application/onboarding.dart';
 import 'package:lull/firebase_options.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Single composition root. Later milestones add persistence warm-up and
@@ -38,10 +40,17 @@ Future<void> bootstrap() async {
   );
 
   final deviceId = await DeviceId.loadOrCreate();
+  // Read the first-run flag synchronously at boot so the router never flashes
+  // the welcome screen for a returning user.
+  final prefs = await SharedPreferences.getInstance();
+  final onboardingSeen = prefs.getBool(onboardingSeenKey) ?? false;
 
   runApp(
     ProviderScope(
-      overrides: [deviceIdProvider.overrideWithValue(deviceId)],
+      overrides: [
+        deviceIdProvider.overrideWithValue(deviceId),
+        onboardingSeedProvider.overrideWithValue(onboardingSeen),
+      ],
       child: const LullApp(),
     ),
   );

@@ -7,6 +7,8 @@ import 'package:lull/core/theme/theme.dart';
 import 'package:lull/features/auth/application/auth_controller.dart';
 import 'package:lull/features/auth/presentation/sign_in_screen.dart';
 import 'package:lull/features/essentials/presentation/today_screen.dart';
+import 'package:lull/features/onboarding/application/onboarding.dart';
+import 'package:lull/features/onboarding/presentation/welcome_screen.dart';
 import 'package:lull/features/pomodoro/presentation/focus_screen.dart';
 import 'package:lull/features/settings/presentation/settings_screen.dart';
 import 'package:lull/features/stats/presentation/stats_screen.dart';
@@ -22,13 +24,17 @@ final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 /// full-bleed over the shell (the focus screen is the hero — no nav chrome).
 final appRouterProvider = Provider<GoRouter>((ref) {
   final isAuthed = ref.watch(isAuthenticatedProvider);
+  final seenOnboarding = ref.watch(onboardingSeenProvider);
   final router = GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/today',
     redirect: (context, state) {
-      final atSignIn = state.matchedLocation == '/sign-in';
-      if (!isAuthed) return atSignIn ? null : '/sign-in';
-      if (atSignIn) return '/today';
+      final loc = state.matchedLocation;
+      if (!isAuthed) return loc == '/sign-in' ? null : '/sign-in';
+      // Authed but new: show the welcome once.
+      if (!seenOnboarding) return loc == '/welcome' ? null : '/welcome';
+      // Onboarded: keep them out of the sign-in / welcome screens.
+      if (loc == '/sign-in' || loc == '/welcome') return '/today';
       return null;
     },
     routes: [
@@ -36,6 +42,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/sign-in',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WelcomeScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
