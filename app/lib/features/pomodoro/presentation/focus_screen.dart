@@ -264,26 +264,18 @@ class _CompletionFlashState extends ConsumerState<_CompletionFlash> {
 
 /// The aurora ring wrapping the countdown block: phase label above, clock
 /// center, the essential's title beneath.
-class _FocusDial extends ConsumerWidget {
+///
+/// Split into per-slice [Consumer]s so the per-second recompute rebuilds only
+/// the ring (progress) and the clock (remaining) — the label and subtitle
+/// rebuild only when the phase actually changes.
+class _FocusDial extends StatelessWidget {
   const _FocusDial();
 
   static const double _diameter = 312;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(focusEngineProvider);
+  Widget build(BuildContext context) {
     final spacing = context.spacing;
-    final type = context.type;
-    final colors = context.colors;
-
-    final paused = state.paused;
-    final label = paused
-        ? 'PAUSED'
-        : (state.isFocus
-                  ? '${state.phase.label} · ${state.sessionIndex} of '
-                        '${state.sessionsPerSet}'
-                  : state.phase.label)
-              .toUpperCase();
 
     // The dial is a fixed circle; cap text scaling inside it so huge scales
     // soften rather than burst the ring.
@@ -294,39 +286,17 @@ class _FocusDial extends ConsumerWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            AnimatedOpacity(
-              opacity: paused ? 0.55 : 1,
-              duration: Motion.functional(context, ref, context.motion.calm),
-              child: ProgressRing(
-                progress: state.progress,
-                size: _diameter,
-                glowTip: !paused,
-                semanticLabel: 'session progress',
-              ),
-            ),
+            const RepaintBoundary(child: _DialRing(diameter: _diameter)),
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: type.label.copyWith(
-                    color: paused ? colors.breakWarm : null,
-                  ),
-                ),
+                const _DialLabel(),
                 SizedBox(height: spacing.md),
-                RepaintBoundary(
-                  child: CountdownText(seconds: state.remainingSeconds),
-                ),
+                const RepaintBoundary(child: _DialCountdown()),
                 SizedBox(height: spacing.md),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: spacing.xxl),
-                  child: Text(
-                    _subtitle(state),
-                    style: type.bodySoft,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  child: const _DialSubtitle(),
                 ),
               ],
             ),
@@ -335,10 +305,96 @@ class _FocusDial extends ConsumerWidget {
       ),
     );
   }
+}
 
-  String _subtitle(FocusState state) => switch (state.phase) {
-    FocusPhase.focus => state.essentialTitle ?? 'deep work',
-    FocusPhase.shortBreak => 'rest your eyes',
-    FocusPhase.longBreak => 'stand, stretch, breathe',
-  };
+/// Per-second: the progress ring (and its paused dim).
+class _DialRing extends ConsumerWidget {
+  const _DialRing({required this.diameter});
+
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (progress, paused) = ref.watch(
+      focusEngineProvider.select((s) => (s.progress, s.paused)),
+    );
+    return AnimatedOpacity(
+      opacity: paused ? 0.55 : 1,
+      duration: Motion.functional(context, ref, context.motion.calm),
+      child: ProgressRing(
+        progress: progress,
+        size: diameter,
+        glowTip: !paused,
+        semanticLabel: 'session progress',
+      ),
+    );
+  }
+}
+
+/// Per-second: the mm:ss clock.
+class _DialCountdown extends ConsumerWidget {
+  const _DialCountdown();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final remaining = ref.watch(
+      focusEngineProvider.select((s) => s.remainingSeconds),
+    );
+    return CountdownText(seconds: remaining);
+  }
+}
+
+/// Per-phase: "FOCUS · 1 OF 4" / "PAUSED".
+class _DialLabel extends ConsumerWidget {
+  const _DialLabel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (phaseLabel, isFocus, sessionIndex, sessionsPerSet, paused) = ref
+        .watch(
+          focusEngineProvider.select(
+            (s) => (
+              s.phase.label,
+              s.isFocus,
+              s.sessionIndex,
+              s.sessionsPerSet,
+              s.paused,
+            ),
+          ),
+        );
+    final label = paused
+        ? 'PAUSED'
+        : (isFocus ? '$phaseLabel · $sessionIndex of $sessionsPerSet' : phaseLabel)
+              .toUpperCase();
+    return Text(
+      label,
+      style: context.type.label.copyWith(
+        color: paused ? context.colors.breakWarm : null,
+      ),
+    );
+  }
+}
+
+/// Per-phase: the essential title or the break prompt.
+class _DialSubtitle extends ConsumerWidget {
+  const _DialSubtitle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (phase, essentialTitle) = ref.watch(
+      focusEngineProvider.select((s) => (s.phase, s.essentialTitle)),
+    );
+    final subtitle = switch (phase) {
+      FocusPhase.focus => essentialTitle ?? 'deep work',
+      FocusPhase.shortBreak => 'rest your eyes',
+      FocusPhase.longBreak => 'stand, stretch, breathe',
+    };
+    return Text(
+      subtitle,
+      style: context.type.bodySoft,
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
 }

@@ -197,7 +197,7 @@ class _Header extends ConsumerWidget {
               Text(_greeting(now), style: type.title),
               SizedBox(height: spacing.sm),
               Text(
-                DateFormat('EEEE, MMMM d').format(now).toLowerCase(),
+                _headerDateFormat.format(now).toLowerCase(),
                 style: type.caption,
               ),
               if (devices > 1) ...[
@@ -264,6 +264,9 @@ class _Failed extends ConsumerWidget {
     );
   }
 }
+
+/// Hoisted so the header doesn't rebuild the formatter on every rebuild.
+final DateFormat _headerDateFormat = DateFormat('EEEE, MMMM d');
 
 String _greeting(DateTime now) {
   if (now.hour < 12) return 'good morning';
