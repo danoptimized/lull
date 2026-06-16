@@ -332,15 +332,70 @@ class _AccountCard extends ConsumerWidget {
           Divider(height: 1, thickness: 1, color: colors.hairline),
           ListTile(
             onTap: () => ref.read(authControllerProvider.notifier).signOut(),
+            title: Text('sign out', style: type.body),
+            contentPadding: EdgeInsets.symmetric(horizontal: spacing.xl),
+          ),
+          Divider(height: 1, thickness: 1, color: colors.hairline),
+          ListTile(
+            onTap: () => _confirmDeleteAccount(context, ref),
             title: Text(
-              'sign out',
+              'delete account',
               style: type.body.copyWith(color: colors.danger),
+            ),
+            subtitle: Text(
+              'permanently erase your account and data',
+              style: type.caption,
             ),
             contentPadding: EdgeInsets.symmetric(horizontal: spacing.xl),
           ),
         ],
       ),
     );
+  }
+}
+
+/// Confirm + perform irreversible account deletion. On success the auth stream
+/// flips to signed-out and the router returns to sign-in on its own.
+Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final colors = context.colors;
+  final type = context.type;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: colors.bg2,
+      title: Text('delete account?', style: type.heading),
+      content: Text(
+        'this permanently erases your account and all your data — essentials, '
+        'sessions, points, and badges. it can’t be undone.',
+        style: type.body,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: Text(
+            'cancel',
+            style: type.body.copyWith(color: colors.textSecondary),
+          ),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: Text(
+            'delete',
+            style: type.body.copyWith(color: colors.danger),
+          ),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return;
+  try {
+    await ref.read(authControllerProvider.notifier).deleteAccount();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('couldn’t delete your account — try again')),
+      );
+    }
   }
 }
 

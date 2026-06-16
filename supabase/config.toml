@@ -390,6 +390,10 @@ verify_jwt = true
 [functions.push-fanout]
 verify_jwt = false
 
+# delete-account identifies the caller from their JWT, then hard-deletes them.
+[functions.delete-account]
+verify_jwt = true
+
 [analytics]
 enabled = true
 port = 55327

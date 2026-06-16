@@ -16,6 +16,9 @@ abstract class AuthRepository {
   Future<void> verifyEmailOtp({required String email, required String token});
 
   Future<void> signOut();
+
+  /// Irreversibly delete the account and all its data, then sign out.
+  Future<void> deleteAccount();
 }
 
 class SupabaseAuthRepository implements AuthRepository {
@@ -51,6 +54,14 @@ class SupabaseAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() => _client.auth.signOut();
+
+  @override
+  Future<void> deleteAccount() async {
+    // The server hard-deletes the auth user (cascading all data); then we clear
+    // the now-invalid local session, which flips the auth stream to signed-out.
+    await _client.functions.invoke('delete-account');
+    await _client.auth.signOut();
+  }
 }
 
 final authRepositoryProvider = Provider<AuthRepository>(
