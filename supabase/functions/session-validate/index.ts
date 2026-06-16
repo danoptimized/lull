@@ -317,14 +317,18 @@ async function finalize(
     // Rate-limit credited focus sessions to blunt scripted farming: a real
     // person completes well under 20 valid sessions in a rolling hour.
     const since = new Date(nowMs - 3_600_000).toISOString();
-    const { count, error: countError } = await db
+    const { count } = await db
       .from('points_ledger')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('entry_type', 'session_complete')
       .gte('created_at', since);
-    if (countError || (count ?? 0) >= 20) {
-      // Fail closed: if we can't verify the rate, don't mint.
+    // Fail OPEN: a transient count error (count == null) must not deny a
+    // legitimate award. The session is already finalized and the idempotent
+    // replay path skips the award block, so a denied award is unrecoverable —
+    // far worse than one extra session occasionally slipping past this
+    // anti-farming cap.
+    if ((count ?? 0) >= 20) {
       award = { rate_limited: true };
     } else {
       const { data: awarded, error } = await db.rpc('award_for_session', {

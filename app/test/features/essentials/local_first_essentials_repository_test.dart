@@ -18,7 +18,8 @@ class _ToggleRemote implements EssentialsRepository {
 
   final EssentialsRepository _inner;
   bool online = true;
-  final Set<String> rejectCreateIds = <String>{};
+  final Set<String> rejectCreateIds = <String>{}; // permanent (4xx/23505)
+  final Set<String> transientCreateIds = <String>{}; // transient (5xx)
 
   Future<T> _guard<T>(Future<T> Function() op) async {
     if (!online) throw Exception('offline');
@@ -38,6 +39,9 @@ class _ToggleRemote implements EssentialsRepository {
     if (!online) throw Exception('offline');
     if (rejectCreateIds.contains(id)) {
       throw const PostgrestException(message: 'duplicate slot', code: '23505');
+    }
+    if (transientCreateIds.contains(id)) {
+      throw const PostgrestException(message: 'service unavailable', code: '503');
     }
     return _inner.create(
       id: id,
@@ -161,6 +165,29 @@ void main() {
     final ids = (await server.fetchToday()).map((e) => e.id);
     expect(ids, contains('good'));
     expect(ids, isNot(contains('poison')));
+  });
+
+  test('a transient server error keeps the entry queued for retry', () async {
+    remote.online = false;
+    await repo.create(id: 'x', slot: 1, title: 'flaky', targetPomodoros: 1);
+
+    // Online, but the server briefly 503s on this write — must NOT be dropped.
+    remote.transientCreateIds.add('x');
+    remote.online = true;
+    await repo.fetchToday(); // drains
+
+    expect(
+      await db.outboxIsEmpty(),
+      isFalse,
+      reason: 'transient error retains the entry',
+    );
+    expect((await server.fetchToday()).isEmpty, isTrue, reason: 'not synced yet');
+
+    // Server recovers; the next drain applies it.
+    remote.transientCreateIds.clear();
+    await repo.fetchToday();
+    expect(await db.outboxIsEmpty(), isTrue);
+    expect((await server.fetchToday()).single.id, 'x');
   });
 
   test('offline create then delete of the same row cancels out', () async {

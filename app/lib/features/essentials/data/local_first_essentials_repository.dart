@@ -180,12 +180,30 @@ class LocalFirstEssentialsRepository implements EssentialsRepository {
         await _applyRemote(entry);
         await _db.deleteOutboxEntry(entry.seq);
       } on PostgrestException catch (e) {
+        if (!_isPermanent(e)) break; // transient (5xx/429) — keep, retry later
         debugPrint('lull · dropping rejected outbox entry ${entry.seq}: ${e.message}');
         await _db.deleteOutboxEntry(entry.seq);
       } catch (_) {
         break; // couldn't reach the server — keep the queue, retry later
       }
     }
+  }
+
+  /// A PostgREST error is permanent only if a retry can never succeed: a
+  /// Postgres integrity/permission failure (SQLSTATE class 23xxx, or 42501 RLS)
+  /// or a 4xx HTTP status. Transient 5xx/429/408, an unknown/empty code, or a
+  /// network error are NOT permanent and keep the entry queued — postgrest does
+  /// not retry writes, so a transient 5xx surfaces here as a PostgrestException
+  /// and must not be mistaken for a rejection (that would lose the user's edit).
+  bool _isPermanent(PostgrestException e) {
+    final code = e.code;
+    if (code == null) return false;
+    if (code.startsWith('23') || code == '42501') return true;
+    final status = int.tryParse(code);
+    if (status != null) {
+      return status >= 400 && status < 500 && status != 408 && status != 429;
+    }
+    return false;
   }
 
   /// An offline create followed by a delete of the same (never-synced) row nets
