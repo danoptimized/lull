@@ -89,8 +89,10 @@ class FocusState {
     FocusStatus? status,
     int? remainingSeconds,
     FocusSession? session,
+    bool clearSession = false,
     String? essentialId,
     String? essentialTitle,
+    bool clearEssential = false,
     bool? rewardVoided,
     FocusPhase? lastCompleted,
     int? completionPulse,
@@ -101,9 +103,13 @@ class FocusState {
       plannedSeconds: plannedSeconds,
       remainingSeconds: remainingSeconds ?? this.remainingSeconds,
       focusesBefore: focusesBefore,
-      session: session ?? this.session,
-      essentialId: essentialId ?? this.essentialId,
-      essentialTitle: essentialTitle ?? this.essentialTitle,
+      // The `x ?? this.x` idiom can't express "set to null", so explicit clear
+      // flags exist for detaching the session or the linked essential.
+      session: clearSession ? null : (session ?? this.session),
+      essentialId: clearEssential ? null : (essentialId ?? this.essentialId),
+      essentialTitle: clearEssential
+          ? null
+          : (essentialTitle ?? this.essentialTitle),
       rewardVoided: rewardVoided ?? this.rewardVoided,
       lastCompleted: lastCompleted ?? this.lastCompleted,
       completionPulse: completionPulse ?? this.completionPulse,

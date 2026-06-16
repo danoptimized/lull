@@ -23,6 +23,11 @@ class EssentialsController extends AsyncNotifier<List<Essential>> {
     state = await AsyncValue.guard(_repo.fetchToday);
   }
 
+  /// Re-fetch today's essentials (which also drains the offline outbox). Called
+  /// on app resume so edits made offline sync even without an explicit
+  /// essentials interaction.
+  Future<void> refresh() => _reload();
+
   Future<void> create({
     required int slot,
     required String title,

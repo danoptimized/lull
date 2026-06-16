@@ -29,6 +29,7 @@ class FakeClock implements ServerClock {
 class RecordingSessionApi implements SessionApi {
   final List<String> calls = [];
   bool? finalizeClientPaused;
+  String? startedEssentialId;
 
   @override
   Future<SessionStartResult?> start({
@@ -39,6 +40,7 @@ class RecordingSessionApi implements SessionApi {
     String? clientId,
   }) async {
     calls.add('start');
+    startedEssentialId = essentialId;
     return SessionStartResult(
       serverId: 'server-123',
       startedAt: DateTime.utc(2026, 6, 13, 9),
@@ -259,6 +261,24 @@ void main() {
       await engine().begin();
       await engine().abort();
       expect(api.calls, contains('finalize:server-123'));
+    });
+
+    test('selectEssential(null) clears it so begin sends no essential', () async {
+      final api = RecordingSessionApi();
+      container = makeContainer(api: api);
+
+      engine().selectEssential('e1', 'write the draft');
+      expect(read().essentialId, 'e1');
+
+      // All essentials done → a null selection must actually clear, or begin()
+      // would credit the finished/stale task.
+      engine().selectEssential(null, null);
+      expect(read().essentialId, isNull);
+      expect(read().essentialTitle, isNull);
+
+      await engine().begin();
+      expect(api.startedEssentialId, isNull);
+      expect(read().session?.essentialId, isNull);
     });
   });
 

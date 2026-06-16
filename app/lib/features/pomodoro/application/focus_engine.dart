@@ -72,7 +72,11 @@ class FocusEngine extends Notifier<FocusState> {
   /// underway so it can't be retargeted mid-run.
   void selectEssential(String? id, String? title) {
     if (!state.ready || !state.isFocus) return;
-    state = state.copyWith(essentialId: id, essentialTitle: title);
+    // id == null means "no task" (e.g. all essentials done) — must actually
+    // clear, or begin() would credit a stale/finished essential.
+    state = id == null
+        ? state.copyWith(clearEssential: true)
+        : state.copyWith(essentialId: id, essentialTitle: title);
   }
 
   Future<void> begin() async {

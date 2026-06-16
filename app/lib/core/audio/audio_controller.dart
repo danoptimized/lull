@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// A selectable ambient bed for focus sessions. v1 ships one curated-later
 /// placeholder; new entries only need a bundled asset path.
@@ -68,6 +71,9 @@ class AudioSettings {
 /// Every playback call is wrapped: missing assets, denied web autoplay, or an
 /// absent plugin degrade to silence rather than throwing into the timer engine.
 class AudioController extends Notifier<AudioSettings> {
+  static const String _kSoundscape = 'lull.audio.soundscape.v1';
+  static const String _kSfx = 'lull.audio.sfx_enabled.v1';
+
   AudioPlayer? _ambient;
   AudioPlayer? _sfx;
   bool _sessionConfigured = false;
@@ -78,7 +84,32 @@ class AudioController extends Notifier<AudioSettings> {
       _ambient?.dispose();
       _sfx?.dispose();
     });
+    unawaited(_restore());
     return const AudioSettings();
+  }
+
+  /// Load saved prefs after the synchronous default (a brief default→saved
+  /// settle is fine — nothing is playing at startup). Never throws.
+  Future<void> _restore() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString(_kSoundscape);
+      final match = Soundscape.values.where((s) => s.name == name);
+      state = state.copyWith(
+        soundscape: match.isEmpty ? state.soundscape : match.first,
+        sfxEnabled: prefs.getBool(_kSfx) ?? state.sfxEnabled,
+      );
+    } catch (_) {
+      // No prefs plugin (tests without mock values) — keep defaults.
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSoundscape, state.soundscape.name);
+      await prefs.setBool(_kSfx, state.sfxEnabled);
+    } catch (_) {}
   }
 
   Future<void> _ensureSession() async {
@@ -94,6 +125,7 @@ class AudioController extends Notifier<AudioSettings> {
 
   Future<void> setSoundscape(Soundscape soundscape) async {
     state = state.copyWith(soundscape: soundscape);
+    unawaited(_persist());
     if (!state.ambientActive) return;
     if (soundscape == Soundscape.none) {
       await _stopAmbient();
@@ -102,8 +134,10 @@ class AudioController extends Notifier<AudioSettings> {
     }
   }
 
-  void setSfxEnabled(bool enabled) =>
-      state = state.copyWith(sfxEnabled: enabled);
+  void setSfxEnabled(bool enabled) {
+    state = state.copyWith(sfxEnabled: enabled);
+    unawaited(_persist());
+  }
 
   /// Begin the selected ambient bed (called when a focus starts).
   Future<void> startAmbient() async {

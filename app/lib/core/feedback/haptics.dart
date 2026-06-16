@@ -1,12 +1,38 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Whether tactile feedback is on. App-local in M1; syncs to the profile later.
+/// Whether tactile feedback is on, persisted across launches.
 class HapticsEnabledNotifier extends Notifier<bool> {
-  @override
-  bool build() => true;
+  static const String _key = 'lull.haptics_enabled.v1';
 
-  void set(bool value) => state = value;
+  @override
+  bool build() {
+    unawaited(_restore());
+    return true;
+  }
+
+  void set(bool value) {
+    state = value;
+    unawaited(_persist(value));
+  }
+
+  Future<void> _restore() async {
+    try {
+      final value = (await SharedPreferences.getInstance()).getBool(_key);
+      if (value != null) state = value;
+    } catch (_) {
+      // No prefs plugin (tests without mock values) — keep the default.
+    }
+  }
+
+  Future<void> _persist(bool value) async {
+    try {
+      await (await SharedPreferences.getInstance()).setBool(_key, value);
+    } catch (_) {}
+  }
 }
 
 final hapticsEnabledProvider = NotifierProvider<HapticsEnabledNotifier, bool>(

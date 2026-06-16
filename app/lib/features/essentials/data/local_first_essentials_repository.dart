@@ -7,6 +7,7 @@ import 'package:lull/core/util/ids.dart';
 import 'package:lull/data/local/app_database.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 /// An [EssentialsRepository] that reads and writes a local Drift cache first,
 /// then reconciles with the remote (Supabase) repository.
@@ -167,16 +168,40 @@ class LocalFirstEssentialsRepository implements EssentialsRepository {
         ),
       );
 
-  /// Replay queued mutations in order. Stops at the first failure so ordering is
-  /// preserved and a transient offline error just leaves the tail queued.
+  /// Replay queued mutations in order. A transient failure (offline) stops the
+  /// drain so ordering is preserved and we retry on the next one; a permanent
+  /// failure — the server reached us and rejected the request (e.g. a stale
+  /// create hitting the slot constraint) — drops just that entry, so one poison
+  /// item can't stall the whole queue forever.
   Future<void> _drain() async {
+    await _coalesce();
     for (final entry in await _db.pendingOutbox()) {
       try {
         await _applyRemote(entry);
         await _db.deleteOutboxEntry(entry.seq);
+      } on PostgrestException catch (e) {
+        debugPrint('lull · dropping rejected outbox entry ${entry.seq}: ${e.message}');
+        await _db.deleteOutboxEntry(entry.seq);
       } catch (_) {
-        break;
+        break; // couldn't reach the server — keep the queue, retry later
       }
+    }
+  }
+
+  /// An offline create followed by a delete of the same (never-synced) row nets
+  /// to nothing on the server, so drop every queued op for such ids before
+  /// draining — avoids needless round-trips and a delete outrunning its create.
+  Future<void> _coalesce() async {
+    final pending = await _db.pendingOutbox();
+    final created = <String>{};
+    final deleted = <String>{};
+    for (final e in pending) {
+      if (e.kind == 'create') created.add(e.essentialId);
+      if (e.kind == 'delete') deleted.add(e.essentialId);
+    }
+    final cancelled = created.intersection(deleted);
+    for (final e in pending) {
+      if (cancelled.contains(e.essentialId)) await _db.deleteOutboxEntry(e.seq);
     }
   }
 

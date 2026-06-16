@@ -5,16 +5,20 @@ import 'package:lull/data/local/app_database.dart';
 import 'package:lull/features/essentials/data/essentials_repository.dart';
 import 'package:lull/features/essentials/data/local_first_essentials_repository.dart';
 import 'package:lull/features/essentials/domain/essential.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../support/fake_essentials_repository.dart';
 
 /// Wraps a fake remote with an on/off switch so a test can drop the network
 /// mid-flow and bring it back. Offline, every call fails like Supabase would.
+/// Ids in [rejectCreateIds] are rejected with a PostgrestException (a permanent,
+/// server-reached failure — i.e. a poison entry).
 class _ToggleRemote implements EssentialsRepository {
   _ToggleRemote(this._inner);
 
   final EssentialsRepository _inner;
   bool online = true;
+  final Set<String> rejectCreateIds = <String>{};
 
   Future<T> _guard<T>(Future<T> Function() op) async {
     if (!online) throw Exception('offline');
@@ -30,14 +34,18 @@ class _ToggleRemote implements EssentialsRepository {
     required int slot,
     required String title,
     required int targetPomodoros,
-  }) => _guard(
-    () => _inner.create(
+  }) async {
+    if (!online) throw Exception('offline');
+    if (rejectCreateIds.contains(id)) {
+      throw const PostgrestException(message: 'duplicate slot', code: '23505');
+    }
+    return _inner.create(
       id: id,
       slot: slot,
       title: title,
       targetPomodoros: targetPomodoros,
-    ),
-  );
+    );
+  }
 
   @override
   Future<void> update({
@@ -133,5 +141,37 @@ void main() {
 
     final visible = await repo.fetchToday();
     expect(visible.single.id, 'z');
+  });
+
+  test('a server-rejected entry is dropped so the queue keeps flowing', () async {
+    remote.online = false;
+    await repo.create(id: 'poison', slot: 1, title: 'dup', targetPomodoros: 1);
+    await repo.create(id: 'good', slot: 2, title: 'ok', targetPomodoros: 1);
+
+    // Back online, but the server permanently rejects 'poison'.
+    remote.rejectCreateIds.add('poison');
+    remote.online = true;
+    await repo.fetchToday(); // drains
+
+    expect(
+      await db.outboxIsEmpty(),
+      isTrue,
+      reason: 'poison dropped, good applied',
+    );
+    final ids = (await server.fetchToday()).map((e) => e.id);
+    expect(ids, contains('good'));
+    expect(ids, isNot(contains('poison')));
+  });
+
+  test('offline create then delete of the same row cancels out', () async {
+    remote.online = false;
+    await repo.create(id: 'temp', slot: 1, title: 'temp', targetPomodoros: 1);
+    await repo.delete('temp');
+
+    remote.online = true;
+    await repo.fetchToday(); // coalesce drops both — no server calls
+
+    expect(await db.outboxIsEmpty(), isTrue);
+    expect((await server.fetchToday()).isEmpty, isTrue);
   });
 }
