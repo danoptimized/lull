@@ -75,7 +75,12 @@ class SlotCard extends StatelessWidget {
                 SizedBox(width: spacing.md),
                 // A bare check, not a filled disc: finished work recedes,
                 // the remaining work leads.
-                Icon(Icons.check_rounded, size: 16, color: colors.success),
+                Icon(
+                  Icons.check_rounded,
+                  size: 16,
+                  color: colors.success,
+                  semanticLabel: 'completed',
+                ),
               ],
             ],
           ),

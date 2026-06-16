@@ -47,56 +47,62 @@ class _MirrorCardState extends ConsumerState<MirrorCard> {
     final now = ref.read(serverClockProvider).now();
     final remaining = session.remainingSeconds(now);
 
-    return Semantics(
-      container: true,
-      excludeSemantics: true,
-      label:
-          'a ${_phase(session.kind)} session is running on another device, '
-          '${_mmss(remaining)} left',
-      child: Container(
-        padding: EdgeInsets.all(spacing.lg),
-        decoration: BoxDecoration(
-          color: colors.bg2,
-          borderRadius: context.radii.brLg,
-          border: Border.all(color: colors.accentTeal.withValues(alpha: 0.25)),
-        ),
-        child: Row(
-          children: [
-            ProgressRing(
-              progress: session.progress(now),
-              size: 44,
-              strokeWidth: 3,
-              semanticLabel: 'session running on another device',
+    return MediaQuery.withClampedTextScaling(
+      // Keep the countdown legible without letting huge text clip the card.
+      maxScaleFactor: 1.3,
+      child: Semantics(
+        container: true,
+        excludeSemantics: true,
+        label:
+            'a ${_phase(session.kind)} session is running on another device, '
+            '${_mmss(remaining)} left',
+        child: Container(
+          padding: EdgeInsets.all(spacing.lg),
+          decoration: BoxDecoration(
+            color: colors.bg2,
+            borderRadius: context.radii.brLg,
+            border: Border.all(
+              color: colors.accentTeal.withValues(alpha: 0.25),
             ),
-            SizedBox(width: spacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      _PulseDot(color: colors.accentTeal),
-                      SizedBox(width: spacing.sm),
-                      Text('RUNNING ELSEWHERE', style: type.label),
-                    ],
-                  ),
-                  SizedBox(height: spacing.xs),
-                  Text(
-                    '${_mmss(remaining)} · ${_phase(session.kind)}',
-                    style: type.body,
-                  ),
-                ],
+          ),
+          child: Row(
+            children: [
+              ProgressRing(
+                progress: session.progress(now),
+                size: 44,
+                strokeWidth: 3,
+                semanticLabel: 'session running on another device',
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.only(right: spacing.sm),
-              child: Text(
-                session.isPaused ? 'paused' : 'on another device',
-                style: type.caption,
+              SizedBox(width: spacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        _PulseDot(color: colors.accentTeal),
+                        SizedBox(width: spacing.sm),
+                        Text('RUNNING ELSEWHERE', style: type.label),
+                      ],
+                    ),
+                    SizedBox(height: spacing.xs),
+                    Text(
+                      '${_mmss(remaining)} · ${_phase(session.kind)}',
+                      style: type.body,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              Padding(
+                padding: EdgeInsets.only(right: spacing.sm),
+                child: Text(
+                  session.isPaused ? 'paused' : 'on another device',
+                  style: type.caption,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

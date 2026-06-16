@@ -236,6 +236,7 @@ class _TargetStepper extends StatelessWidget {
                   : null,
               icon: const Icon(Icons.remove_rounded),
               color: colors.textSecondary,
+              tooltip: 'one fewer pomodoro',
             ),
             ConstrainedBox(
               constraints: const BoxConstraints(minWidth: 28),
@@ -251,6 +252,7 @@ class _TargetStepper extends StatelessWidget {
                   : null,
               icon: const Icon(Icons.add_rounded),
               color: colors.textSecondary,
+              tooltip: 'one more pomodoro',
             ),
           ],
         ),
