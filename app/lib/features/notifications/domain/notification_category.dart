@@ -51,4 +51,15 @@ class DeviceNotificationPrefs {
     streak: category == NotificationCategory.streak ? value : streak,
     rewards: category == NotificationCategory.rewards ? value : rewards,
   );
+
+  @override
+  bool operator ==(Object other) =>
+      other is DeviceNotificationPrefs &&
+      other.timer == timer &&
+      other.essentials == essentials &&
+      other.streak == streak &&
+      other.rewards == rewards;
+
+  @override
+  int get hashCode => Object.hash(timer, essentials, streak, rewards);
 }

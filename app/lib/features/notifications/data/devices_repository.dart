@@ -73,19 +73,19 @@ class SupabaseDevicesRepository implements DevicesRepository {
     required String userId,
     required String deviceId,
   }) async {
+    final columns = NotificationCategory.values.map((c) => c.column).join(', ');
     final row = await _client
         .from('devices')
-        .select('notify_timer, notify_essentials, notify_streak, notify_rewards')
+        .select(columns)
         .eq('user_id', userId)
         .eq('device_id', deviceId)
         .maybeSingle();
     if (row == null) return const DeviceNotificationPrefs();
-    return DeviceNotificationPrefs(
-      timer: row['notify_timer'] as bool? ?? true,
-      essentials: row['notify_essentials'] as bool? ?? true,
-      streak: row['notify_streak'] as bool? ?? true,
-      rewards: row['notify_rewards'] as bool? ?? true,
-    );
+    var prefs = const DeviceNotificationPrefs();
+    for (final category in NotificationCategory.values) {
+      prefs = prefs.withCategory(category, row[category.column] as bool? ?? true);
+    }
+    return prefs;
   }
 
   @override
