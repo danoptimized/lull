@@ -37,6 +37,13 @@ const MIN_CREDITABLE_FOCUS_SECONDS = 300;
 
 type Pause = { start: string; end: string | null };
 
+/** The session kinds a client may start. */
+const SESSION_KINDS = new Set(['focus', 'short_break', 'long_break']);
+
+/** Loose UUID shape — rejects obviously-garbage ids before any DB hit. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -98,7 +105,9 @@ Deno.serve(async (req) => {
         return json({ error: 'unknown_action' }, 400);
     }
   } catch (e) {
-    return json({ error: 'server_error', detail: String(e) }, 500);
+    // Log the real error server-side; never leak DB/internal detail to clients.
+    console.error('session-validate error:', e);
+    return json({ error: 'server_error' }, 500);
   }
 });
 
@@ -113,6 +122,18 @@ async function start(
   const plannedSeconds = body.plannedSeconds as number;
   if (!idempotencyKey || typeof plannedSeconds !== 'number') {
     return json({ error: 'missing_fields' }, 400);
+  }
+  // Validate up front rather than leaning on DB constraints (whose errors would
+  // leak column/constraint names). A planned focus is 25 min; cap generously.
+  if (
+    !Number.isInteger(plannedSeconds) ||
+    plannedSeconds < 60 ||
+    plannedSeconds > 7200
+  ) {
+    return json({ error: 'invalid_planned_seconds' }, 400);
+  }
+  if (!SESSION_KINDS.has(kind)) {
+    return json({ error: 'invalid_kind' }, 400);
   }
 
   // Idempotent retry: the same key always returns the same row.
@@ -153,7 +174,10 @@ async function start(
     })
     .select()
     .single();
-  if (error) return json({ error: 'insert_failed', detail: error.message }, 409);
+  if (error) {
+    console.error('session insert failed:', error.message);
+    return json({ error: 'insert_failed' }, 409);
+  }
 
   return json({ session: data, serverNow: nowIso });
 }
@@ -180,6 +204,9 @@ async function pause(
   nowIso: string,
 ): Promise<Response> {
   const sessionId = body.sessionId as string;
+  if (!UUID_RE.test(sessionId ?? '')) {
+    return json({ error: 'invalid_session_id' }, 400);
+  }
   const row = await loadActive(db, userId, sessionId);
   if (!row) return json({ error: 'no_active_session' }, 404);
 
@@ -206,6 +233,9 @@ async function resume(
   nowIso: string,
 ): Promise<Response> {
   const sessionId = body.sessionId as string;
+  if (!UUID_RE.test(sessionId ?? '')) {
+    return json({ error: 'invalid_session_id' }, 400);
+  }
   const row = await loadActive(db, userId, sessionId);
   if (!row) return json({ error: 'no_active_session' }, 404);
 
@@ -232,6 +262,9 @@ async function finalize(
   nowIso: string,
 ): Promise<Response> {
   const sessionId = body.sessionId as string;
+  if (!UUID_RE.test(sessionId ?? '')) {
+    return json({ error: 'invalid_session_id' }, 400);
+  }
 
   // Idempotent: a finalized session returns its recorded verdict.
   const { data: existing } = await db
@@ -284,13 +317,14 @@ async function finalize(
     // Rate-limit credited focus sessions to blunt scripted farming: a real
     // person completes well under 20 valid sessions in a rolling hour.
     const since = new Date(nowMs - 3_600_000).toISOString();
-    const { count } = await db
+    const { count, error: countError } = await db
       .from('points_ledger')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('entry_type', 'session_complete')
       .gte('created_at', since);
-    if ((count ?? 0) >= 20) {
+    if (countError || (count ?? 0) >= 20) {
+      // Fail closed: if we can't verify the rate, don't mint.
       award = { rate_limited: true };
     } else {
       const { data: awarded, error } = await db.rpc('award_for_session', {

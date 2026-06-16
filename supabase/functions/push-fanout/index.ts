@@ -123,11 +123,11 @@ async function sendToToken(
     },
   );
   if (res.ok) return { ok: true, unregistered: false };
-  // 404 UNREGISTERED / 400 invalid → the token will never work again.
+  // Only a 404 / UNREGISTERED token is genuinely dead. Transient 401/429/5xx —
+  // and ambiguous INVALID_ARGUMENT, which usually means an oversize payload, not
+  // a bad token — must NOT prune a live token.
   const text = await res.text();
-  const unregistered =
-    res.status === 404 || text.includes('UNREGISTERED') ||
-    text.includes('INVALID_ARGUMENT');
+  const unregistered = res.status === 404 || text.includes('UNREGISTERED');
   return { ok: false, unregistered };
 }
 
@@ -136,7 +136,16 @@ Deno.serve(async (req) => {
   if (req.headers.get('Authorization') !== `Bearer ${SERVICE_ROLE_KEY}`) {
     return json({ error: 'unauthorized' }, 401);
   }
+  try {
+    return await fanout(req);
+  } catch (e) {
+    // One bad token or OAuth blip must not 500 the whole fan-out silently.
+    console.error('push-fanout error:', e);
+    return json({ error: 'fanout_failed' }, 500);
+  }
+});
 
+async function fanout(req: Request): Promise<Response> {
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
@@ -172,23 +181,35 @@ Deno.serve(async (req) => {
   }
 
   const accessToken = await mintAccessToken(sa);
+  // FCM notification fields are length-limited; clamp so an oversize message
+  // can't 400 (which would otherwise look like a bad token).
+  const safeTitle = title.slice(0, 100);
+  const safeBody = body.slice(0, 240);
+
+  // Send to all devices concurrently; one failure never sinks the rest.
+  const results = await Promise.allSettled(
+    devices.map((device) =>
+      sendToToken(
+        sa.project_id,
+        accessToken,
+        device.push_token as string,
+        safeTitle,
+        safeBody,
+      ).then((r) => ({ id: device.id as string, ...r })),
+    ),
+  );
+
   let sent = 0;
   const dead: string[] = [];
-  for (const device of devices) {
-    const result = await sendToToken(
-      sa.project_id,
-      accessToken,
-      device.push_token as string,
-      title,
-      body,
-    );
-    if (result.ok) sent++;
-    else if (result.unregistered) dead.push(device.id as string);
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue; // transient send error: keep token
+    if (r.value.ok) sent++;
+    else if (r.value.unregistered) dead.push(r.value.id);
   }
-  // Prune dead tokens so we stop trying them.
+  // Prune only genuinely-dead tokens so we stop trying them.
   if (dead.length > 0) {
     await db.from('devices').update({ push_token: null }).in('id', dead);
   }
 
   return json({ sent, pruned: dead.length });
-});
+}

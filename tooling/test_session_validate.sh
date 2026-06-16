@@ -39,6 +39,14 @@ SID=$(echo "$R" | j "['session']['id']")
 [ -n "$SID" ] && [ "$SID" != "None" ] && pass "start created a session ($SID)" || fail "start: $R"
 [ "$(echo "$R" | j "['session']['is_valid']")" = "None" ] && pass "new session is_valid is null" || fail "is_valid not null"
 
+# --- input validation guards (reject before any DB hit, no leaked detail) ---
+R=$(call "{\"action\":\"start\",\"plannedSeconds\":10,\"idempotencyKey\":\"$(uuidgen)\"}")
+[ "$(echo "$R" | j "['error']")" = "invalid_planned_seconds" ] && pass "rejects out-of-range plannedSeconds (400)" || fail "planned validation: $R"
+R=$(call "{\"action\":\"start\",\"plannedSeconds\":1500,\"kind\":\"bogus\",\"idempotencyKey\":\"$(uuidgen)\"}")
+[ "$(echo "$R" | j "['error']")" = "invalid_kind" ] && pass "rejects unknown kind (400)" || fail "kind validation: $R"
+R=$(call "{\"action\":\"finalize\",\"sessionId\":\"not-a-uuid\"}")
+[ "$(echo "$R" | j "['error']")" = "invalid_session_id" ] && pass "rejects malformed sessionId (400)" || fail "uuid validation: $R"
+
 # --- idempotent start (same key) ---
 R=$(call "{\"action\":\"start\",\"plannedSeconds\":1500,\"idempotencyKey\":\"$K1\"}")
 [ "$(echo "$R" | j "['replayed']")" = "True" ] && [ "$(echo "$R" | j "['session']['id']")" = "$SID" ] \
