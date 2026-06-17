@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lull/data/local/app_database.dart';
@@ -95,9 +96,12 @@ class SupabaseEssentialsRepository implements EssentialsRepository {
 /// Local-first by default: a Drift cache + outbox in front of Supabase, so
 /// today's essentials read instantly and survive being offline. Tests override
 /// this with an in-memory fake and never touch Drift or Supabase.
-final essentialsRepositoryProvider = Provider<EssentialsRepository>(
-  (ref) => LocalFirstEssentialsRepository(
-    SupabaseEssentialsRepository(),
-    ref.watch(appDatabaseProvider),
-  ),
-);
+final essentialsRepositoryProvider = Provider<EssentialsRepository>((ref) {
+  final remote = SupabaseEssentialsRepository();
+  // Web doesn't ship sqlite3.wasm / drift_worker.js yet, so the Drift cache
+  // can't open there — use the remote directly (online-only) to avoid the
+  // failed-worker console noise. Native gets the full offline cache + outbox.
+  // (To enable web offline later: add those assets to web/ and drop this guard.)
+  if (kIsWeb) return remote;
+  return LocalFirstEssentialsRepository(remote, ref.watch(appDatabaseProvider));
+});
