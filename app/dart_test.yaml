@@ -13,3 +13,7 @@ tags:
   # tag-level skip instead — that one `--run-skipped` can override.
   preview:
     skip: "preview goldens — run with: flutter test --run-skipped -t preview test/preview"
+  # Store screenshots (test/store), written to ../store/screenshots. Generate with:
+  #   flutter test --update-goldens --run-skipped -t store test/store
+  store:
+    skip: "store screenshots — run with: flutter test --update-goldens --run-skipped -t store test/store"
