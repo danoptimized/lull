@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:lull/core/theme/theme.dart';
 import 'package:lull/features/onboarding/application/onboarding.dart';
@@ -57,10 +56,11 @@ class WelcomeScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: LullPillButton(
                   label: 'begin',
-                  onPressed: () async {
-                    await ref.read(onboardingSeenProvider.notifier).markSeen();
-                    if (context.mounted) context.go('/today');
-                  },
+                  // Marking onboarding seen rebuilds the router, which redirects
+                  // /welcome → /today on its own (same mechanism as sign-in).
+                  // Navigating here too would race that rebuild and blank the page.
+                  onPressed: () =>
+                      ref.read(onboardingSeenProvider.notifier).markSeen(),
                 ),
               ),
             ),
