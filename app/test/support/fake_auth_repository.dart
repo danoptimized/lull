@@ -41,4 +41,10 @@ class FakeAuthRepository implements AuthRepository {
     _user = null;
     _controller.add(null);
   }
+
+  @override
+  Future<void> signInWithGoogle() async {
+    _user = const AuthUser(id: 'fake-google', email: 'you@gmail.com');
+    _controller.add(_user);
+  }
 }

@@ -1,7 +1,13 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lull/features/auth/domain/auth_user.dart';
 // Supabase ships its own AuthUser; ours is the app-facing identity.
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthUser;
+
+/// Deep link the OAuth provider returns to on mobile (registered as a custom
+/// URL scheme in iOS Info.plist + the Android manifest, and allow-listed in the
+/// Supabase dashboard). On web the redirect uses the configured Site URL.
+const String _oauthRedirect = 'works.lull://login-callback';
 
 /// The auth surface the app depends on. Production talks to Supabase; tests
 /// swap in a fake so nothing touches gotrue or the network.
@@ -14,6 +20,9 @@ abstract class AuthRepository {
   /// Email one-time passcode flow: request a code, then verify it.
   Future<void> sendEmailOtp(String email);
   Future<void> verifyEmailOtp({required String email, required String token});
+
+  /// Google OAuth — opens the provider; the session arrives via the redirect.
+  Future<void> signInWithGoogle();
 
   Future<void> signOut();
 
@@ -51,6 +60,12 @@ class SupabaseAuthRepository implements AuthRepository {
       type: OtpType.email,
     );
   }
+
+  @override
+  Future<void> signInWithGoogle() => _client.auth.signInWithOAuth(
+    OAuthProvider.google,
+    redirectTo: kIsWeb ? null : _oauthRedirect,
+  );
 
   @override
   Future<void> signOut() => _client.auth.signOut();

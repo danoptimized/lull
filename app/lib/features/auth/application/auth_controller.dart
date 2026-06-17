@@ -22,6 +22,9 @@ class AuthController extends Notifier<AuthUser?> {
       .read(authRepositoryProvider)
       .verifyEmailOtp(email: email.trim(), token: token.trim());
 
+  Future<void> signInWithGoogle() =>
+      ref.read(authRepositoryProvider).signInWithGoogle();
+
   Future<void> signOut() => ref.read(authRepositoryProvider).signOut();
 
   Future<void> deleteAccount() =>

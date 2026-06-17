@@ -36,4 +36,14 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(container.read(authControllerProvider), isNull);
   });
+
+  test('signInWithGoogle establishes a session', () async {
+    final container = containerFor(null);
+    expect(container.read(authControllerProvider), isNull);
+
+    await container.read(authControllerProvider.notifier).signInWithGoogle();
+    await Future<void>.delayed(Duration.zero); // let the auth stream propagate
+
+    expect(container.read(authControllerProvider)?.id, 'fake-google');
+  });
 }

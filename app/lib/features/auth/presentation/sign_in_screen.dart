@@ -65,6 +65,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         .verifyOtp(email: _email.text, token: _code.text),
   );
 
+  Future<void> _google() => _run(
+    () => ref.read(authControllerProvider.notifier).signInWithGoogle(),
+  );
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -140,6 +144,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             onPressed: _busy ? null : _sendCode,
           ),
         ),
+        SizedBox(height: spacing.xl),
+        const LullEntrance(index: 4, child: _OrDivider()),
+        SizedBox(height: spacing.xl),
+        LullEntrance(
+          index: 5,
+          child: _GoogleButton(onPressed: _busy ? null : _google),
+        ),
       ],
     );
   }
@@ -211,6 +222,54 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      children: [
+        Expanded(child: Divider(color: colors.hairline)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: context.spacing.md),
+          child: Text(
+            'or',
+            style: context.type.caption.copyWith(color: colors.textFaint),
+          ),
+        ),
+        Expanded(child: Divider(color: colors.hairline)),
+      ],
+    );
+  }
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: colors.hairline),
+          padding: EdgeInsets.symmetric(vertical: context.spacing.lg),
+          shape: RoundedRectangleBorder(borderRadius: context.radii.brMd),
+        ),
+        child: Text(
+          'continue with google',
+          style: context.type.body.copyWith(color: colors.textPrimary),
+        ),
+      ),
     );
   }
 }
