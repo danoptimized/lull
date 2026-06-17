@@ -13,6 +13,17 @@ abstract class SessionChannel {
   });
 }
 
+/// Whether a remote session is worth mirroring: another device is *currently*
+/// running it — active (not ended), not this device's, and with time still on
+/// the clock. The remaining-time check drops sessions left open on a device
+/// that has since gone (e.g. a closed browser tab), which would otherwise show
+/// as "00:00 · running elsewhere" forever. A device clock is fine here —
+/// staleness is on the order of minutes, far larger than any client/server skew.
+bool isLiveMirror(RemoteSession session, String myDeviceId, DateTime now) =>
+    session.isActive &&
+    session.clientId != myDeviceId &&
+    session.remainingSeconds(now) > 0;
+
 class SupabaseSessionChannel implements SessionChannel {
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -27,9 +38,8 @@ class SupabaseSessionChannel implements SessionChannel {
     void emit(Map<String, dynamic> data) {
       try {
         final session = RemoteSession.fromJson(data);
-        // A mirror is an active session this device did not start.
-        final isMine = session.clientId == myDeviceId;
-        controller.add(session.isActive && !isMine ? session : null);
+        final live = isLiveMirror(session, myDeviceId, DateTime.now().toUtc());
+        controller.add(live ? session : null);
       } catch (_) {
         /* ignore malformed payloads */
       }
