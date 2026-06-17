@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The device's push identity. Isolated behind this interface so the rest of the
@@ -34,7 +35,13 @@ class FirebasePushTokens implements PushTokens {
   }
 
   @override
-  Stream<String> get onTokenRefresh => FirebaseMessaging.instance.onTokenRefresh;
+  Stream<String> get onTokenRefresh {
+    try {
+      return FirebaseMessaging.instance.onTokenRefresh;
+    } catch (_) {
+      return const Stream<String>.empty();
+    }
+  }
 }
 
 /// For tests and unsupported platforms: no permission prompt, no token.
@@ -48,4 +55,8 @@ class NoopPushTokens implements PushTokens {
   Stream<String> get onTokenRefresh => const Stream.empty();
 }
 
-final pushTokensProvider = Provider<PushTokens>((ref) => FirebasePushTokens());
+// Web push needs a VAPID key + service worker that aren't set up yet, and the
+// firebase_messaging web APIs throw without them — so use the no-op on web.
+final pushTokensProvider = Provider<PushTokens>(
+  (ref) => kIsWeb ? const NoopPushTokens() : FirebasePushTokens(),
+);

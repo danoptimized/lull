@@ -61,10 +61,16 @@ final deviceRegistrationProvider = Provider<void>((ref) {
   // context, is the classic permission anti-pattern.
   unawaited(_ensureDeviceRow(repo, user.id, deviceId));
 
-  final sub = tokens.onTokenRefresh.listen((token) {
-    repo.attachToken(userId: user.id, deviceId: deviceId, token: token);
-  });
-  ref.onDispose(sub.cancel);
+  // Defensive: subscribing must never throw into the widget build (it powers
+  // the authed shell). Web uses the no-op tokens; this guards mobile edge cases.
+  try {
+    final sub = tokens.onTokenRefresh.listen((token) {
+      repo.attachToken(userId: user.id, deviceId: deviceId, token: token);
+    });
+    ref.onDispose(sub.cancel);
+  } catch (error, stack) {
+    debugPrint('lull · token-refresh listen skipped: $error\n$stack');
+  }
 });
 
 Future<void> _ensureDeviceRow(
