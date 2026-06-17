@@ -64,7 +64,10 @@ class SupabaseAuthRepository implements AuthRepository {
   @override
   Future<void> signInWithGoogle() => _client.auth.signInWithOAuth(
     OAuthProvider.google,
-    redirectTo: kIsWeb ? null : _oauthRedirect,
+    // Web returns to the current origin (so localhost dev and prod both work,
+    // as long as the origin is in Supabase's redirect allowlist); mobile uses
+    // the registered custom scheme.
+    redirectTo: kIsWeb ? Uri.base.origin : _oauthRedirect,
   );
 
   @override
