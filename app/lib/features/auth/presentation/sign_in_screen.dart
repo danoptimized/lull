@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -102,6 +103,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final spacing = context.spacing;
     final type = context.type;
     final colors = context.colors;
+    // Google sign-in is hidden on iOS: App Store guideline 4.8 requires Sign in
+    // with Apple alongside any other social login, and Apple sign-in is deferred.
+    // Android and web keep Google.
+    final showGoogle = kIsWeb || defaultTargetPlatform != TargetPlatform.iOS;
 
     return Column(
       key: const ValueKey(_Step.email),
@@ -144,13 +149,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             onPressed: _busy ? null : _sendCode,
           ),
         ),
-        SizedBox(height: spacing.xl),
-        const LullEntrance(index: 4, child: _OrDivider()),
-        SizedBox(height: spacing.xl),
-        LullEntrance(
-          index: 5,
-          child: _GoogleButton(onPressed: _busy ? null : _google),
-        ),
+        if (showGoogle) ...[
+          SizedBox(height: spacing.xl),
+          const LullEntrance(index: 4, child: _OrDivider()),
+          SizedBox(height: spacing.xl),
+          LullEntrance(
+            index: 5,
+            child: _GoogleButton(onPressed: _busy ? null : _google),
+          ),
+        ],
       ],
     );
   }
