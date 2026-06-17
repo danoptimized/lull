@@ -30,10 +30,37 @@ dependencies:
 dev_dependencies:
   build_runner: ^2.15.0
   drift_dev: ^2.20.0
+  flutter_launcher_icons: ^0.14.4
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.4.6
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.5
+
+# Launcher icon — owner drops a square ≥1024px PNG at assets/icon/lull_icon.png,
+# then run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icon/lull_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#0A0E13"
+  adaptive_icon_foreground: "assets/icon/lull_icon.png"
+  web:
+    generate: true
+    image_path: "assets/icon/lull_icon.png"
+  macos:
+    generate: true
+    image_path: "assets/icon/lull_icon.png"
+
+# Splash — a calm dark "pre-dawn" screen (theme-aware), no asset required.
+# Regenerate after changes: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#F2F1EC"
+  color_dark: "#0A0E13"
+  android_12:
+    color: "#F2F1EC"
+    color_dark: "#0A0E13"
 
 flutter:
   uses-material-design: true
