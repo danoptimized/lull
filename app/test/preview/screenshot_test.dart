@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lull/core/router/app_router.dart';
 import 'package:lull/core/theme/theme.dart';
+import 'package:lull/core/time/wall_clock.dart';
 import 'package:lull/features/auth/data/auth_repository.dart';
 import 'package:lull/features/auth/domain/auth_user.dart';
 import 'package:lull/features/auth/presentation/sign_in_screen.dart';
@@ -85,6 +86,9 @@ void main() {
   // A signed-in session with seeded essentials so the gated router lands on
   // the real screens with representative content.
   previewOverrides() => [
+    // Pin "now" so the Today header's greeting + date are deterministic
+    // (otherwise the golden drifts with the day it's generated).
+    wallClockProvider.overrideWithValue(() => DateTime(2026, 6, 12, 9, 41)),
     authRepositoryProvider.overrideWithValue(
       FakeAuthRepository(
         const AuthUser(id: 'preview', email: 'you@example.com'),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +7,9 @@ import 'package:intl/intl.dart';
 
 import 'package:lull/core/theme/theme.dart';
 import 'package:lull/core/time/clock_sync.dart';
+import 'package:lull/core/time/wall_clock.dart';
 import 'package:lull/features/essentials/application/essentials_controller.dart';
+import 'package:lull/features/essentials/domain/essential.dart';
 import 'package:lull/features/essentials/presentation/widgets/essential_editor.dart';
 import 'package:lull/features/essentials/presentation/widgets/slot_card.dart';
 import 'package:lull/features/notifications/application/notifications_controller.dart';
@@ -13,6 +17,9 @@ import 'package:lull/features/notifications/presentation/notification_bell.dart'
 import 'package:lull/features/pomodoro/application/focus_engine.dart';
 import 'package:lull/features/pomodoro/application/mirror_controller.dart';
 import 'package:lull/features/pomodoro/data/presence_channel.dart';
+import 'package:lull/features/pomodoro/domain/focus_phase.dart';
+import 'package:lull/features/pomodoro/presentation/widgets/active_session_card.dart';
+import 'package:lull/features/pomodoro/presentation/widgets/focus_essential_picker.dart';
 import 'package:lull/features/pomodoro/presentation/widgets/mirror_card.dart';
 import 'package:lull/features/profile/application/profile_sync.dart';
 import 'package:lull/features/stats/data/economy_channel.dart';
@@ -79,6 +86,9 @@ class TodayScreen extends ConsumerWidget {
     return LullScaffold(
       child: Column(
         children: [
+          // Renders nothing unless this device has a live session; when it
+          // does, it's the prominent "you have a session running" indicator.
+          const ActiveSessionCard(),
           if (mirror != null)
             Padding(
               padding: EdgeInsets.fromLTRB(
@@ -104,26 +114,71 @@ class TodayScreen extends ConsumerWidget {
               spacing.screenPadding,
               spacing.screenPadding,
             ),
-            child: LullEntrance(
-              index: 5,
-              child: SizedBox(
-                width: double.infinity,
-                child: LullPillButton(
-                  label: 'begin a focus session',
-                  onPressed: () {
-                    final next = ref.read(nextEssentialProvider);
-                    ref
-                        .read(focusEngineProvider.notifier)
-                        .selectEssential(next?.id, next?.title);
-                    context.push('/focus');
-                  },
-                ),
-              ),
-            ),
+            child: const LullEntrance(index: 5, child: _FocusCta()),
           ),
         ],
       ),
     );
+  }
+}
+
+/// The one calm call to action. While a session is live on this device it
+/// becomes "return to your session" and jumps straight back to the focus
+/// screen; otherwise it opens the essential picker, then heads into focus.
+class _FocusCta extends ConsumerWidget {
+  const _FocusCta();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (active, phase) = ref.watch(
+      focusEngineProvider.select((s) => (s.isActive, s.phase)),
+    );
+    // Mid-cycle, the next thing up may be a break — name it honestly instead of
+    // always saying "focus session".
+    final label = active
+        ? 'return to your session'
+        : switch (phase) {
+            FocusPhase.focus => 'begin a focus session',
+            FocusPhase.shortBreak => 'begin your break',
+            FocusPhase.longBreak => 'begin a longer rest',
+          };
+    return SizedBox(
+      width: double.infinity,
+      child: LullPillButton(
+        label: label,
+        onPressed: active
+            ? () => context.push('/focus')
+            : () => _begin(context, ref),
+      ),
+    );
+  }
+
+  Future<void> _begin(BuildContext context, WidgetRef ref) async {
+    final engine = ref.read(focusEngineProvider.notifier);
+    final state = ref.read(focusEngineProvider);
+    final essentials = ref
+        .read(essentialSlotsProvider)
+        .whereType<Essential>()
+        .toList();
+
+    // Mid-cycle on a break: there's no essential to attach to a rest, so skip
+    // the picker and go straight in.
+    if (!state.isFocus) {
+      unawaited(context.push('/focus'));
+      return;
+    }
+    // An empty day: nothing to choose — focus with no linked task (and clear
+    // any essential left over from a previous selection).
+    if (essentials.isEmpty) {
+      engine.selectEssential(null, null);
+      unawaited(context.push('/focus'));
+      return;
+    }
+
+    final choice = await showFocusEssentialPicker(context);
+    if (choice == null || !context.mounted) return; // dismissed
+    engine.selectEssential(choice.essential?.id, choice.essential?.title);
+    unawaited(context.push('/focus'));
   }
 }
 
@@ -184,7 +239,7 @@ class _Header extends ConsumerWidget {
     final spacing = context.spacing;
     final type = context.type;
     final colors = context.colors;
-    final now = DateTime.now();
+    final now = ref.watch(wallClockProvider)();
     final progress = ref.watch(dayProgressProvider);
     final devices = ref.watch(onlineDevicesProvider).asData?.value ?? 0;
 

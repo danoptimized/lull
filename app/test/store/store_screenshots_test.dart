@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lull/core/router/app_router.dart';
 import 'package:lull/core/theme/theme.dart';
+import 'package:lull/core/time/wall_clock.dart';
 import 'package:lull/features/auth/data/auth_repository.dart';
 import 'package:lull/features/auth/domain/auth_user.dart';
 import 'package:lull/features/auth/presentation/sign_in_screen.dart';
@@ -78,6 +79,8 @@ void main() {
 
   // Signed in + already onboarded, with representative seeded content.
   overrides() => [
+    // Pin "now" so the Today header greeting + date don't drift by run date.
+    wallClockProvider.overrideWithValue(() => DateTime(2026, 6, 12, 9, 41)),
     authRepositoryProvider.overrideWithValue(
       FakeAuthRepository(const AuthUser(id: 'shot', email: 'you@example.com')),
     ),
